@@ -19,7 +19,7 @@ package {
 }
 
 android_test {
-    name: "ContactsPickerTests",
+    name: "ContactsPickerIntegrationTests",
     certificate: "platform",
     sdk_version: "test_current",
     srcs: [
@@ -35,6 +35,7 @@ android_test {
         "androidx.test.ext.truth",
         "androidx.test.rules",
         "androidx.test.runner",
+        "ContactsPickerLib",
         "flag-junit",
         "kotlin-test",
         "platform-test-annotations",
@@ -43,6 +44,6 @@ android_test {
         "general-tests",
     ],
     associates: [
-        "ContactsPicker",
+        "ContactsPickerLib",
     ],
 }
