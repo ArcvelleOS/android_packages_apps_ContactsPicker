@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.contactspicker.ui.components
+package com.android.contactspicker.ui.pickerscreen
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -34,7 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.android.contactspicker.R
 
 @Composable
-fun TopBar() {
+fun ContactsPickerTopBar(onSearchBarToggled: (isExpanded: Boolean) -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -44,7 +44,10 @@ fun TopBar() {
         ContactsPickerSearchBar(
             modifier = Modifier.weight(1.0f),
             expanded = expanded,
-            onExpandedChange = { expanded = it },
+            onExpandedChange = { isExpanded ->
+                expanded = isExpanded
+                onSearchBarToggled(isExpanded)
+            },
         )
         if (!expanded) {
             ProfileSwitcher()

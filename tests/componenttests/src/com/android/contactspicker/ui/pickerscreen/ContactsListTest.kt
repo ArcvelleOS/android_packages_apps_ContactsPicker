@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.contactspicker.ui.components
+package com.android.contactspicker.ui.pickerscreen
 
 import android.content.flags.Flags
 import android.platform.test.annotations.RequiresFlagsEnabled
@@ -27,8 +27,8 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.android.contactspicker.DisplayMode
-import com.android.contactspicker.contact.Contact
+import com.android.contactspicker.data.model.DisplayNameContact
+import com.android.contactspicker.ui.components.AVATAR_TEST_TAG
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -44,14 +44,12 @@ class ContactsListTest {
     fun contactsList_displaysHeadersAndContacts() {
         val contacts =
             listOf(
-                Contact(id = 1L, displayName = "Alpha"),
-                Contact(id = 3L, displayName = "Beta"),
-                Contact(id = 2L, displayName = "Gamma"),
+                DisplayNameContact(id = 1L, displayName = "Alpha"),
+                DisplayNameContact(id = 3L, displayName = "Beta"),
+                DisplayNameContact(id = 2L, displayName = "Gamma"),
             )
 
-        composeTestRule.setContent {
-            ContactsList(contacts = contacts, displayMode = DisplayMode.CONTACT_SELECTION)
-        }
+        composeTestRule.setContent { ContactsList(contacts = contacts) }
 
         composeTestRule
             .onNode(hasTestTag(CONTACTS_LIST_SECTION_HEADER_TEST_TAG) and hasText("A"))
