@@ -13,19 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.contactspicker.contact
+package com.android.contactspicker.ui.utils
+
+import androidx.annotation.DrawableRes
+import androidx.compose.ui.graphics.vector.ImageVector
 
 /**
- * Represents a single contact entity.
- *
- * @property id The unique identifier for the contact.
- * @property displayName The primary name to display for the contact.
- * @property phone The phone number of the contact, if available.
- * @property email The email address of the contact, if available.
+ * Represents an icon resource that can be either a Jetpack Compose [ImageVector] or an XML drawable
+ * resource.
  */
-data class Contact(
-    val id: Long,
-    val displayName: String,
-    val phone: String? = null,
-    val email: String? = null,
-)
+sealed class IconResource {
+    /** A vector-based icon from [androidx.compose.material.icons.Icons]. */
+    data class Vector(val imageVector: ImageVector) : IconResource()
+
+    /** An icon from a drawable resource ID (e.g., R.drawable.my_icon). */
+    data class Painter(@get:DrawableRes val id: Int) : IconResource()
+}
