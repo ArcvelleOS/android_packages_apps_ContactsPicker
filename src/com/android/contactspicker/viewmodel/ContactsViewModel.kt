@@ -48,13 +48,13 @@ class ContactsViewModel @Inject constructor(private val contactsRepository: Cont
      * trigger the ViewModel's logic, as it changes the [ContactsUiState].
      */
     fun processIntent(intentAction: String?, intentType: String?) {
-        _uiState.value = ContactsUiState.Loading
-
         viewModelScope.launch {
             try {
                 val contacts = contactsRepository.fetchContacts(intentAction, intentType)
+                // TODO(b/444459883): check and handle empty list
                 _uiState.value = ContactsUiState.Success(contacts)
             } catch (e: IllegalArgumentException) {
+                Log.e(TAG, "An invalid intent was passed.", e)
                 // TODO(b/444459883): iterate on error handling and error messages
                 _uiState.value = ContactsUiState.Error(e.message ?: "Invalid intent.")
             } catch (e: Exception) {
