@@ -23,10 +23,17 @@ import android.platform.test.annotations.RequiresFlagsDisabled
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
-import androidx.lifecycle.Lifecycle
+import android.provider.ContactsContract
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeDown
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.android.contactspicker.ui.components.BOTTOM_SHEET_TEST_TAG
 import com.google.common.truth.Truth.assertThat
 import org.junit.Assert.assertThrows
 import org.junit.Rule
@@ -37,13 +44,19 @@ import org.junit.runner.RunWith
 class ContactsPickerActivityTest {
 
     @get:Rule val checkFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
+
+    @get:Rule val composeTestRule = createEmptyComposeRule()
+
     private val context: Context = ApplicationProvider.getApplicationContext()
+    private val intent =
+        Intent(context, ContactsPickerActivity::class.java).apply {
+            action = Intent.ACTION_PICK
+            type = ContactsContract.Contacts.CONTENT_TYPE
+        }
 
     @Test
     @RequiresFlagsDisabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
-    fun intent_contactPicketFlagDisabled_throws() {
-        val intent = Intent(context, ContactsPickerActivity::class.java)
-
+    fun intent_contactPickerFlagDisabled_throws() {
         assertThrows(RuntimeException::class.java) {
             ActivityScenario.launch<ContactsPickerActivity>(intent)
         }
@@ -51,11 +64,32 @@ class ContactsPickerActivityTest {
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
-    fun intent_contactPicketFlagEnabled_startsActivity() {
-        val intent = Intent(context, ContactsPickerActivity::class.java)
-        ActivityScenario.launch<ContactsPickerActivity>(intent).use { scenario ->
-            assertThat(scenario.state).isAnyOf(Lifecycle.State.STARTED, Lifecycle.State.CREATED)
-            scenario.close()
-        }
+    fun topBarSearchText_isDisplayed() {
+        ActivityScenario.launch<ContactsPickerActivity>(intent)
+
+        composeTestRule
+            .onNodeWithText(context.getString(R.string.top_bar_search_placeholder_hint))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
+    fun whenSwipedDown_activityFinishes() {
+        val scenario = ActivityScenario.launch<ContactsPickerActivity>(intent)
+        composeTestRule.onNodeWithTag(BOTTOM_SHEET_TEST_TAG).performTouchInput { swipeDown() }
+        composeTestRule.waitForIdle()
+
+        scenario.onActivity { activity -> assertThat(activity.isFinishing).isTrue() }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
+    fun whenActivityIsRecreated_bottomSheetIsStillVisible() {
+        val scenario = ActivityScenario.launch<ContactsPickerActivity>(intent)
+        composeTestRule.onNodeWithTag(BOTTOM_SHEET_TEST_TAG).assertIsDisplayed()
+
+        scenario.recreate()
+
+        composeTestRule.onNodeWithTag(BOTTOM_SHEET_TEST_TAG).assertIsDisplayed()
     }
 }
