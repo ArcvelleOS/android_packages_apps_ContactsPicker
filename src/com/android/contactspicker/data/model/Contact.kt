@@ -36,9 +36,14 @@ sealed class Contact {
  *
  * @param id A unique identifier for the contact.
  * @param displayName The name of the contact. Must not be blank.
+ * @param lookupKey A unique, stable identifier for the contact.
  * @throws IllegalArgumentException if [displayName] is blank.
  */
-data class DisplayNameContact(override val id: Long, override val displayName: String) : Contact() {
+data class DisplayNameContact(
+    override val id: Long,
+    override val displayName: String,
+    val lookupKey: String? = null,
+) : Contact() {
     init {
         require(displayName.isNotBlank()) { "Display name must not be blank." }
     }
@@ -94,10 +99,10 @@ data class EmailContact(
  * Represents a single phone entry with its unique ID corresponding to the ID in the Data._ID table,
  * number, and a user-readable label (e.g., "Home", "Work").
  */
-data class PhoneEntry(val id: Long, val number: String, val label: String)
+data class PhoneEntry(val id: Long, val number: String, val label: String? = null)
 
 /**
  * Represents a single email entry with its unique ID corresponding to the ID in the Data._ID table,
  * address, and a user-readable label (e.g., "Home", "Work").
  */
-data class EmailEntry(val id: Long, val address: String, val label: String)
+data class EmailEntry(val id: Long, val address: String, val label: String? = null)
