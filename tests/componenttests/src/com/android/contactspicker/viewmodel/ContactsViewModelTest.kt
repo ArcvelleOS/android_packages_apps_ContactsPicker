@@ -16,11 +16,14 @@
 
 package com.android.contactspicker.viewmodel
 
+import android.content.ContentUris
 import android.content.Intent
 import android.content.flags.Flags
+import android.os.Bundle
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
+import android.provider.ContactsContract
 import android.provider.ContactsContract.CommonDataKinds.Phone
 import com.android.contactspicker.ContactsUiState
 import com.android.contactspicker.data.model.Contact
@@ -92,7 +95,11 @@ class ContactsViewModelTest {
         val collectedStates = mutableListOf<ContactsUiState>()
         val job = launch { viewModel.uiState.toList(collectedStates) }
 
-        viewModel.processIntent(Intent.ACTION_PICK, Phone.CONTENT_TYPE)
+        viewModel.processIntent(
+            intentAction = Intent.ACTION_PICK,
+            intentType = Phone.CONTENT_TYPE,
+            intentExtras = null,
+        )
         testDispatcher.scheduler.advanceUntilIdle()
 
         assertThat(collectedStates).hasSize(2)
@@ -116,11 +123,39 @@ class ContactsViewModelTest {
         val testException = IllegalArgumentException("Unsupported action")
         fakeRepository.setException(testException)
 
-        viewModel.processIntent("INVALID_ACTION", null)
+        viewModel.processIntent(
+            intentAction = "INVALID_ACTION",
+            intentType = null,
+            intentExtras = null,
+        )
         testDispatcher.scheduler.advanceUntilIdle()
 
         val errorState = viewModel.uiState.value as ContactsUiState.Error
         assertThat(errorState.message).isEqualTo("Unsupported action")
+    }
+
+    @Test
+    fun processIntent_withoutMultiSelectExtra_setsSingleSelectModeInState() = runTest {
+        loadViewModelWithInitialContacts(listOf(displayNameContact), intentExtras = null)
+        assertThat(viewModel.currentSuccessState.isMultiSelectEnabled).isFalse()
+    }
+
+    @Test
+    fun processIntent_withMultiSelectExtraFalse_setsSingleSelectModeInState() = runTest {
+        loadViewModelWithInitialContacts(
+            listOf(displayNameContact),
+            intentExtras = buildIntentExtras(isMultiSelectEnabled = false),
+        )
+        assertThat(viewModel.currentSuccessState.isMultiSelectEnabled).isFalse()
+    }
+
+    @Test
+    fun processIntent_withMultiSelectExtraTrue_setsMultiSelectModeInState() = runTest {
+        loadViewModelWithInitialContacts(
+            listOf(displayNameContact),
+            intentExtras = buildIntentExtras(isMultiSelectEnabled = true),
+        )
+        assertThat(viewModel.currentSuccessState.isMultiSelectEnabled).isTrue()
     }
 
     @Test
@@ -149,7 +184,7 @@ class ContactsViewModelTest {
 
     @Test
     fun toggleContactSelection_selectsAllEntriesForMultiPhoneContact() {
-        loadViewModelWithInitialContacts(listOf(multiPhoneContact))
+        loadViewModelWithInitialContactsInMultiSelectMode(listOf(multiPhoneContact))
 
         viewModel.toggleContactSelection(multiPhoneContact)
 
@@ -160,7 +195,7 @@ class ContactsViewModelTest {
 
     @Test
     fun toggleContactSelection_deselectsAllEntriesForMultiPhoneContact() {
-        loadViewModelWithInitialContacts(listOf(multiPhoneContact))
+        loadViewModelWithInitialContactsInMultiSelectMode(listOf(multiPhoneContact))
 
         // Select first
         viewModel.toggleContactSelection(multiPhoneContact)
@@ -172,8 +207,42 @@ class ContactsViewModelTest {
     }
 
     @Test
-    fun toggleEntrySelection_selectsOneEntry() {
+    fun toggleContactSelection_inSingleSelectForMultiEntry_selectsOnlyFirstEntry() {
         loadViewModelWithInitialContacts(listOf(multiPhoneContact))
+        assertThat(viewModel.currentSuccessState.isMultiSelectEnabled).isFalse()
+
+        // Toggle contact
+        viewModel.toggleContactSelection(multiPhoneContact)
+
+        val selection = viewModel.currentSuccessState.selectedContacts
+        assertThat(selection.count()).isEqualTo(1)
+        assertThat(selection.containsKey(multiPhoneContact.id)).isTrue()
+        assertThat(selection[multiPhoneContact.id])
+            .containsExactly(multiPhoneContact.phones.first().id)
+    }
+
+    @Test
+    fun toggleContactSelection_singleSelect_replacesPreviousSelection() {
+        loadViewModelWithInitialContacts(listOf(displayNameContact, singleEmailContact))
+        assertThat(viewModel.currentSuccessState.isMultiSelectEnabled).isFalse()
+
+        // Select the first contact
+        viewModel.toggleContactSelection(displayNameContact)
+        var selection = viewModel.currentSuccessState.selectedContacts
+        assertThat(selection.count()).isEqualTo(1)
+        assertThat(selection.containsKey(displayNameContact.id)).isTrue()
+
+        // Select the second contact
+        viewModel.toggleContactSelection(singleEmailContact)
+        selection = viewModel.currentSuccessState.selectedContacts
+        assertThat(selection.count()).isEqualTo(1)
+        assertThat(selection.containsKey(singleEmailContact.id)).isTrue()
+        assertThat(selection.containsKey(displayNameContact.id)).isFalse() // Previous is gone
+    }
+
+    @Test
+    fun toggleEntrySelection_selectsOneEntry() {
+        loadViewModelWithInitialContactsInMultiSelectMode(listOf(multiPhoneContact))
 
         val entryToSelect = multiPhoneContact.phones.first()
         viewModel.toggleEntrySelection(multiPhoneContact.id, entryToSelect.id)
@@ -184,8 +253,29 @@ class ContactsViewModelTest {
     }
 
     @Test
+    fun toggleEntrySelection_singleSelect_replacesPreviousSelection() {
+        loadViewModelWithInitialContacts(listOf(displayNameContact, multiPhoneContact))
+        assertThat(viewModel.currentSuccessState.isMultiSelectEnabled).isFalse()
+
+        // Select the first contact
+        viewModel.toggleContactSelection(displayNameContact)
+        var selection = viewModel.currentSuccessState.selectedContacts
+        assertThat(selection.count()).isEqualTo(1)
+        assertThat(selection.containsKey(displayNameContact.id)).isTrue()
+
+        // Select an entry from the second contact
+        val entryToSelect = multiPhoneContact.phones.first()
+        viewModel.toggleEntrySelection(multiPhoneContact.id, entryToSelect.id)
+
+        selection = viewModel.currentSuccessState.selectedContacts
+        assertThat(selection.count()).isEqualTo(1)
+        assertThat(selection.containsKey(multiPhoneContact.id)).isTrue()
+        assertThat(selection.containsKey(displayNameContact.id)).isFalse() // Previous is gone
+    }
+
+    @Test
     fun toggleEntrySelection_deselectsOneEntry() {
-        loadViewModelWithInitialContacts(listOf(multiPhoneContact))
+        loadViewModelWithInitialContactsInMultiSelectMode(listOf(multiPhoneContact))
 
         val entryToToggle = multiPhoneContact.phones.first()
         // Select first
@@ -199,7 +289,7 @@ class ContactsViewModelTest {
 
     @Test
     fun toggleEntrySelection_removesContactId_whenLastEntryIsDeselected() {
-        loadViewModelWithInitialContacts(listOf(singleEmailContact))
+        loadViewModelWithInitialContactsInMultiSelectMode(listOf(singleEmailContact))
 
         val entryToToggle = singleEmailContact.emails.first()
         // Select the only entry
@@ -215,7 +305,9 @@ class ContactsViewModelTest {
 
     @Test
     fun clearSelection_emptiesTheSelectionMap() {
-        loadViewModelWithInitialContacts(listOf(displayNameContact, multiPhoneContact))
+        loadViewModelWithInitialContactsInMultiSelectMode(
+            listOf(displayNameContact, multiPhoneContact)
+        )
 
         viewModel.toggleContactSelection(multiPhoneContact)
         viewModel.toggleContactSelection(displayNameContact)
@@ -228,14 +320,120 @@ class ContactsViewModelTest {
         assertThat(selection.isEmpty()).isTrue()
     }
 
+    @Test
+    fun prepareSelectionResult_withNoSelection_returnsEmptyList() {
+        loadViewModelWithInitialContacts(listOf(displayNameContact))
+
+        val uris = viewModel.prepareSelectionResult()
+
+        assertThat(uris).isEmpty()
+    }
+
+    @Test
+    fun prepareSelectionResult_withDisplayNameContact_returnsContactLookupUri() {
+        loadViewModelWithInitialContacts(listOf(displayNameContact))
+        viewModel.toggleContactSelection(displayNameContact)
+
+        val uris = viewModel.prepareSelectionResult()
+
+        val expectedUri =
+            ContactsContract.Contacts.getLookupUri(
+                displayNameContact.id,
+                displayNameContact.lookupKey,
+            )
+        assertThat(uris).containsExactly(expectedUri)
+    }
+
+    @Test
+    fun prepareSelectionResult_withSingleEmailEntry_returnsDataUri() {
+        loadViewModelWithInitialContacts(listOf(singleEmailContact))
+        val entry = singleEmailContact.emails.first()
+        viewModel.toggleEntrySelection(singleEmailContact.id, entry.id)
+
+        val uris = viewModel.prepareSelectionResult()
+
+        val expectedUri = ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, entry.id)
+        assertThat(uris).containsExactly(expectedUri)
+    }
+
+    @Test
+    fun prepareSelectionResult_withMultiplePhoneEntries_returnsDataUris() {
+        // Must be in multi-select mode
+        loadViewModelWithInitialContacts(listOf(multiPhoneContact), buildIntentExtras(true))
+        viewModel.toggleContactSelection(multiPhoneContact) // Selects all entries
+
+        val uris = viewModel.prepareSelectionResult()
+
+        val expectedUri1 = ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, 30L)
+        val expectedUri2 = ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, 31L)
+        assertThat(uris).containsExactly(expectedUri1, expectedUri2)
+    }
+
+    @Test
+    fun prepareSelectionResult_withMixedSelection_returnsAllUris() {
+        // Must be in multi-select mode
+        loadViewModelWithInitialContacts(
+            listOf(displayNameContact, multiPhoneContact),
+            buildIntentExtras(true),
+        )
+
+        // Select the DisplayNameContact
+        viewModel.toggleContactSelection(displayNameContact)
+        // Select the first phone entry from the MultiPhoneContact
+        val entry = multiPhoneContact.phones.first()
+        viewModel.toggleEntrySelection(multiPhoneContact.id, entry.id)
+
+        val uris = viewModel.prepareSelectionResult()
+
+        val expectedDisplayNameUri =
+            ContactsContract.Contacts.getLookupUri(
+                displayNameContact.id,
+                displayNameContact.lookupKey,
+            )
+        val expectedPhoneUri =
+            ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, entry.id)
+
+        assertThat(uris).containsExactly(expectedDisplayNameUri, expectedPhoneUri)
+    }
+
+    @Test
+    fun prepareSelectionResult_inSingleSelect_withMultipleEntriesSelected_returnsOnlyOneUri() {
+        // This simulates the defensive logic in toggleContactSelection
+        loadViewModelWithInitialContacts(listOf(multiPhoneContact), buildIntentExtras(false))
+        viewModel.toggleContactSelection(
+            multiPhoneContact
+        ) // This should only select the first entry
+
+        val uris = viewModel.prepareSelectionResult()
+        val firstEntry = multiPhoneContact.phones.first()
+        val expectedUri =
+            ContentUris.withAppendedId(ContactsContract.Data.CONTENT_URI, firstEntry.id)
+
+        assertThat(uris).containsExactly(expectedUri)
+    }
+
     /**
      * Helper function to put the ViewModel into a Success state with a predefined list of contacts.
      */
-    private fun loadViewModelWithInitialContacts(contacts: List<Contact>) {
+    private fun loadViewModelWithInitialContacts(
+        contacts: List<Contact>,
+        intentExtras: Bundle? = null,
+    ) {
         fakeRepository.setInitialContacts(contacts)
-        viewModel.processIntent(Intent.ACTION_PICK, null)
+        viewModel.processIntent(
+            intentAction = Intent.ACTION_PICK,
+            intentType = null,
+            intentExtras = intentExtras,
+        )
         testDispatcher.scheduler.advanceUntilIdle()
     }
+
+    private fun loadViewModelWithInitialContactsInMultiSelectMode(contacts: List<Contact>) {
+        loadViewModelWithInitialContacts(contacts, buildIntentExtras(true))
+    }
+
+    private fun buildIntentExtras(isMultiSelectEnabled: Boolean): Bundle =
+        Bundle().apply { putBoolean(Intent.EXTRA_ALLOW_MULTIPLE, isMultiSelectEnabled) }
 
     /**
      * A helper property to safely access the `Success` state for assertions. Fails the test if the
