@@ -19,6 +19,7 @@ package com.android.contactspicker
 import android.app.Activity
 import android.app.ApplicationPackageManager
 import android.app.Instrumentation
+import android.content.ClipData
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -53,6 +54,7 @@ import com.android.contactspicker.data.model.DisplayNameContact
 import com.android.contactspicker.inject.ActivityModule
 import com.android.contactspicker.inject.AppModule
 import com.android.contactspicker.provider.CallingPackageProvider
+import com.android.contactspicker.room.dao.PrivacyBannerShownDao
 import com.android.contactspicker.ui.components.BOTTOM_SHEET_TEST_TAG
 import com.android.contactspicker.viewmodel.ContactsViewModel
 import com.google.common.truth.Truth.assertThat
@@ -97,6 +99,7 @@ class ContactsPickerActivityTest {
     @BindValue @JvmField val mockCallingPackageProvider: CallingPackageProvider = mock()
 
     @BindValue val mockViewModel: ContactsViewModel = mock()
+    @BindValue val mockPrivacyBannerShownDao: PrivacyBannerShownDao = mock()
 
     private lateinit var testPackageName: String
 
@@ -141,13 +144,14 @@ class ContactsPickerActivityTest {
                     isMultiSelectEnabled = false,
                     callingAppName = null,
                     requestedMimeTypes = emptyList(),
+                    showPrivacyBanner = false,
                 )
             )
         whenever(mockViewModel.uiState).thenReturn(successState)
         whenever(mockViewModel.snackbarEvents).thenReturn(emptyFlow())
         doNothing()
             .whenever(mockViewModel)
-            .processIntent(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull())
+            .processIntent(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyInt())
     }
 
     @After
@@ -262,11 +266,17 @@ class ContactsPickerActivityTest {
                     isMultiSelectEnabled = false,
                     callingAppName = null,
                     requestedMimeTypes = emptyList(),
+                    showPrivacyBanner = false,
                 )
             )
         whenever(mockViewModel.uiState).thenReturn(successStateSingleSelect)
-        whenever(mockViewModel.prepareSelectionResult(any()))
-            .thenReturn(createSingleSelectionResult(context, Intent.ACTION_PICK, testUri, -1))
+        whenever(mockViewModel.prepareSelectionResult())
+            .thenReturn(
+                Intent().apply {
+                    data = testUri
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            )
 
         val scenario = ActivityScenario.launchActivityForResult<ContactsPickerActivity>(baseIntent)
 
@@ -302,18 +312,20 @@ class ContactsPickerActivityTest {
                     isMultiSelectEnabled = true,
                     callingAppName = null,
                     requestedMimeTypes = emptyList(),
+                    showPrivacyBanner = false,
                 )
             )
         whenever(mockViewModel.uiState).thenReturn(successStateMultiSelect)
         // Set up ViewModel to return intent with multiple URIs
-        whenever(mockViewModel.prepareSelectionResult(context))
+        whenever(mockViewModel.prepareSelectionResult())
             .thenReturn(
-                createMultiSelectionResult(
-                    context,
-                    Intent.ACTION_PICK,
-                    listOf(testUri, testUri2),
-                    -1,
-                )
+                Intent().apply {
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    clipData =
+                        ClipData.newUri(context.contentResolver, "uri", testUri).apply {
+                            addItem(ClipData.Item(testUri2))
+                        }
+                }
             )
 
         val scenario = ActivityScenario.launchActivityForResult<ContactsPickerActivity>(baseIntent)
@@ -352,10 +364,11 @@ class ContactsPickerActivityTest {
                     isMultiSelectEnabled = false,
                     callingAppName = null,
                     requestedMimeTypes = emptyList(),
+                    showPrivacyBanner = false,
                 )
             )
         whenever(mockViewModel.uiState).thenReturn(successStateSingleSelect)
-        whenever(mockViewModel.prepareSelectionResult(any())).thenReturn(null)
+        whenever(mockViewModel.prepareSelectionResult()).thenReturn(null)
 
         val scenario = ActivityScenario.launchActivityForResult<ContactsPickerActivity>(baseIntent)
 
@@ -452,6 +465,7 @@ class ContactsPickerActivityTest {
                     isMultiSelectEnabled = false,
                     callingAppName = testAppName,
                     requestedMimeTypes = emptyList(),
+                    showPrivacyBanner = true,
                 )
             )
         whenever(mockViewModel.uiState).thenReturn(successState)
@@ -483,6 +497,7 @@ class ContactsPickerActivityTest {
                     isMultiSelectEnabled = false,
                     callingAppName = testAppName,
                     requestedMimeTypes = emptyList(),
+                    showPrivacyBanner = true,
                 )
             )
         whenever(mockViewModel.uiState).thenReturn(successState)
