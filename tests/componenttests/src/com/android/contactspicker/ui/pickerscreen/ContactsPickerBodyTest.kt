@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.android.contactspicker.ui.components
+package com.android.contactspicker.ui.pickerscreen
 
 import android.content.flags.Flags
 import android.platform.test.annotations.RequiresFlagsEnabled
@@ -26,16 +26,17 @@ import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollToIndex
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.android.contactspicker.DisplayMode
-import com.android.contactspicker.contact.Contact
+import com.android.contactspicker.data.model.DisplayNameContact
+import com.android.contactspicker.ui.components.AVATAR_TEST_TAG
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
 @RunWith(AndroidJUnit4::class)
-class ContactsListTest {
+class ContactsPickerBodyTest {
 
     @get:Rule val composeTestRule = createComposeRule()
     @get:Rule val checkFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
@@ -44,13 +45,17 @@ class ContactsListTest {
     fun contactsList_displaysHeadersAndContacts() {
         val contacts =
             listOf(
-                Contact(id = 1L, displayName = "Alpha"),
-                Contact(id = 3L, displayName = "Beta"),
-                Contact(id = 2L, displayName = "Gamma"),
+                DisplayNameContact(id = 1L, displayName = "Alpha"),
+                DisplayNameContact(id = 3L, displayName = "Beta"),
+                DisplayNameContact(id = 2L, displayName = "Gamma"),
             )
 
         composeTestRule.setContent {
-            ContactsList(contacts = contacts, displayMode = DisplayMode.CONTACT_SELECTION)
+            ContactsPickerBody(
+                contacts = contacts,
+                onPrivacyBannerMoreDetails = {},
+                onPrivacyBannerDismissRequest = {},
+            )
         }
 
         composeTestRule
@@ -76,5 +81,39 @@ class ContactsListTest {
         composeTestRule
             .onNode(hasTestTag(AVATAR_TEST_TAG) and hasAnyDescendant(hasText("G")))
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun privacyBanner_isDisplayed() {
+        composeTestRule.setContent {
+            ContactsPickerBody(
+                contacts = listOf(DisplayNameContact(id = 1L, displayName = "Alpha")),
+                onPrivacyBannerMoreDetails = {},
+                onPrivacyBannerDismissRequest = {},
+            )
+        }
+        composeTestRule.onNode(hasTestTag(PRIVACY_BANNER_TEST_TAG)).assertIsDisplayed()
+    }
+
+    @Test
+    fun privacyBanner_isNotDisplayed_afterScrollingTheContactList() {
+        val contacts =
+            List(30) { i -> DisplayNameContact(id = i.toLong(), displayName = "Contact $i") }
+
+        composeTestRule.setContent {
+            ContactsPickerBody(
+                contacts = contacts,
+                onPrivacyBannerMoreDetails = {},
+                onPrivacyBannerDismissRequest = {},
+            )
+        }
+
+        composeTestRule.onNode(hasTestTag(PRIVACY_BANNER_TEST_TAG)).assertIsDisplayed()
+
+        composeTestRule
+            .onNode(hasTestTag(CONTACTS_LIST_TEST_TAG))
+            .performScrollToIndex(contacts.size - 1)
+
+        composeTestRule.onNode(hasTestTag(PRIVACY_BANNER_TEST_TAG)).assertDoesNotExist()
     }
 }

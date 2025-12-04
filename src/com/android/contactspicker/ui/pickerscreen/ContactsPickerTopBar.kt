@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.contactspicker.ui.components
+package com.android.contactspicker.ui.pickerscreen
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -28,13 +28,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.android.contactspicker.R
 
+const val CONTACTS_PICKER_TOP_BAR_PRIVACY_ICON_TEST_TAG = "contacts_picker_top_bar_privacy_icon"
+
 @Composable
-fun TopBar() {
+fun ContactsPickerTopBar(onSearchBarToggled: (isExpanded: Boolean) -> Unit) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     Row(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -44,7 +47,10 @@ fun TopBar() {
         ContactsPickerSearchBar(
             modifier = Modifier.weight(1.0f),
             expanded = expanded,
-            onExpandedChange = { expanded = it },
+            onExpandedChange = { isExpanded ->
+                expanded = isExpanded
+                onSearchBarToggled(isExpanded)
+            },
         )
         if (!expanded) {
             ProfileSwitcher()
@@ -52,6 +58,7 @@ fun TopBar() {
                 painter = painterResource(id = R.drawable.android_security_privacy),
                 contentDescription = stringResource(R.string.privacy_info_content_description),
                 tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.testTag(CONTACTS_PICKER_TOP_BAR_PRIVACY_ICON_TEST_TAG),
             )
         }
     }

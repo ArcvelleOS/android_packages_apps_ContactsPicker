@@ -15,158 +15,42 @@
  */
 package com.android.contactspicker.ui.components
 
-import android.content.Context
 import android.content.flags.Flags
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.unit.height
-import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.android.contactspicker.ContactsUiState
-import com.android.contactspicker.DisplayMode
-import com.android.contactspicker.R
-import com.android.contactspicker.contact.Contact
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 
+@OptIn(ExperimentalMaterial3Api::class)
 @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
 @RunWith(AndroidJUnit4::class)
 class ContactsPickerBottomSheetTest {
     @get:Rule val composeTestRule = createComposeRule()
     @get:Rule val checkFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
 
-    private val context: Context = ApplicationProvider.getApplicationContext()
-
-    private val testContact =
-        Contact(
-            id = 1,
-            displayName = "Jon Snow",
-            phone = "111-222-3333",
-            email = "jon.snow@thewall.org",
-        )
-
-    @Test
-    fun whenStateIsLoading_showsLoadingIndicator() {
-        composeTestRule.setContent {
-            ContactsPickerBottomSheet(onDismissRequest = {}, uiState = ContactsUiState.Loading)
-        }
-
-        composeTestRule.onNodeWithTag(BOTTOM_SHEET_LOADING_INDICATOR_TEST_TAG).assertIsDisplayed()
-    }
-
-    @Test
-    fun whenStateIsError_showsErrorMessage() {
-        val errorMessage = "Failed to load contacts."
-        composeTestRule.setContent {
-            ContactsPickerBottomSheet(
-                onDismissRequest = {},
-                uiState = ContactsUiState.Error(errorMessage),
-            )
-        }
-
-        composeTestRule.onNodeWithText(errorMessage).assertIsDisplayed()
-    }
-
-    @Test
-    fun whenStateIsSuccess_showsContact() {
-        composeTestRule.setContent {
-            ContactsPickerBottomSheet(
-                onDismissRequest = {},
-                uiState =
-                    ContactsUiState.Success(
-                        displayMode = DisplayMode.CONTACT_SELECTION,
-                        contacts = listOf(testContact),
-                    ),
-            )
-        }
-
-        composeTestRule.onNodeWithText(testContact.displayName).assertIsDisplayed()
-    }
-
-    @Test
-    fun whenStateIsSuccess_showsSearchBox() {
-        composeTestRule.setContent {
-            ContactsPickerBottomSheet(
-                onDismissRequest = {},
-                uiState =
-                    ContactsUiState.Success(
-                        displayMode = DisplayMode.CONTACT_SELECTION,
-                        contacts = listOf(testContact),
-                    ),
-            )
-        }
-
-        composeTestRule
-            .onNodeWithText(context.getString(R.string.top_bar_search_placeholder_hint))
-            .assertIsDisplayed()
-    }
-
-    @Test
-    fun whenStateIsSuccess_showsProfileSelector() {
-        composeTestRule.setContent {
-            ContactsPickerBottomSheet(
-                onDismissRequest = {},
-                uiState =
-                    ContactsUiState.Success(
-                        displayMode = DisplayMode.CONTACT_SELECTION,
-                        contacts = listOf(testContact),
-                    ),
-            )
-        }
-
-        composeTestRule
-            .onNodeWithContentDescription(
-                context.getString(R.string.profile_switcher_content_description)
-            )
-            .assertIsDisplayed()
-    }
-
-    @Test
-    fun whenStateIsSuccess_showsPrivacyButton() {
-        composeTestRule.setContent {
-            ContactsPickerBottomSheet(
-                onDismissRequest = {},
-                uiState =
-                    ContactsUiState.Success(
-                        displayMode = DisplayMode.CONTACT_SELECTION,
-                        contacts = listOf(testContact),
-                    ),
-            )
-        }
-
-        composeTestRule
-            .onNodeWithContentDescription(
-                context.getString(R.string.privacy_info_content_description)
-            )
-            .assertIsDisplayed()
-    }
-
     @Test
     fun initialState_peekHeightIsCorrect() {
+        val mockOnDismissRequest: () -> Unit = mock()
+
         composeTestRule.setContent {
-            ContactsPickerBottomSheet(
-                onDismissRequest = {},
-                uiState =
-                    ContactsUiState.Success(
-                        displayMode = DisplayMode.CONTACT_SELECTION,
-                        contacts = listOf(testContact),
-                    ),
-            )
+            ContactsPickerBottomSheet(onDismissRequest = mockOnDismissRequest)
         }
 
         val sheetBounds =
@@ -182,15 +66,10 @@ class ContactsPickerBottomSheetTest {
 
     @Test
     fun whenSheetIsSwipedUp_expands() {
+        val mockOnDismissRequest: () -> Unit = mock()
+
         composeTestRule.setContent {
-            ContactsPickerBottomSheet(
-                onDismissRequest = {},
-                uiState =
-                    ContactsUiState.Success(
-                        displayMode = DisplayMode.CONTACT_SELECTION,
-                        contacts = listOf(testContact),
-                    ),
-            )
+            ContactsPickerBottomSheet(onDismissRequest = mockOnDismissRequest)
         }
 
         val sheetNode = composeTestRule.onNodeWithTag(BOTTOM_SHEET_TEST_TAG)
@@ -209,19 +88,26 @@ class ContactsPickerBottomSheetTest {
         val mockOnDismissRequest: () -> Unit = mock()
 
         composeTestRule.setContent {
-            ContactsPickerBottomSheet(
-                onDismissRequest = mockOnDismissRequest,
-                uiState =
-                    ContactsUiState.Success(
-                        displayMode = DisplayMode.CONTACT_SELECTION,
-                        contacts = listOf(testContact),
-                    ),
-            )
+            ContactsPickerBottomSheet(onDismissRequest = mockOnDismissRequest)
         }
 
         composeTestRule.onNodeWithTag(BOTTOM_SHEET_TEST_TAG).performTouchInput { swipeDown() }
         composeTestRule.waitForIdle()
 
-        verify(mockOnDismissRequest).invoke()
+        verify(mockOnDismissRequest, times(1)).invoke()
+    }
+
+    @Test
+    fun scrim_isDisplayed_onlyWhenSheetIsVisible() {
+        val mockOnDismissRequest: () -> Unit = mock()
+        composeTestRule.setContent {
+            ContactsPickerBottomSheet(onDismissRequest = mockOnDismissRequest)
+        }
+
+        composeTestRule.onNodeWithTag(SCRIM_TEST_TAG).assertIsDisplayed()
+
+        composeTestRule.onNodeWithTag(BOTTOM_SHEET_TEST_TAG).performTouchInput { swipeDown() }
+        composeTestRule.waitForIdle()
+        composeTestRule.onNodeWithTag(SCRIM_TEST_TAG).assertDoesNotExist()
     }
 }

@@ -15,102 +15,92 @@
  */
 package com.android.contactspicker.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.BottomSheetScaffold
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.navigation.compose.rememberNavController
 import com.android.contactspicker.ContactsUiState
+import com.android.contactspicker.navigation.ContactsPickerNavHost
+import kotlinx.coroutines.launch
 
 internal const val BOTTOM_SHEET_TEST_TAG = "bottom_sheet"
-internal const val BOTTOM_SHEET_LOADING_INDICATOR_TEST_TAG = "bottom_sheet_loading_indicator"
+internal const val SCRIM_TEST_TAG = "scrim"
+
 internal const val BOTTOM_SHEET_PEEK_HEIGHT_RATIO = 0.75f
+private const val SCRIM_ALPHA = 0.32f
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ContactsPickerBottomSheet(onDismissRequest: () -> Unit, uiState: ContactsUiState) {
-    val peekHeight = LocalConfiguration.current.screenHeightDp.dp * BOTTOM_SHEET_PEEK_HEIGHT_RATIO
-    val bottomSheetState =
+fun ContactsPickerBottomSheet(
+    onDismissRequest: () -> Unit,
+    uiState: ContactsUiState = ContactsUiState.Loading,
+    bottomSheetState: SheetState =
         rememberStandardBottomSheetState(
             initialValue = SheetValue.PartiallyExpanded,
             skipHiddenState = false,
-        )
+        ),
+) {
+    val peekHeight = LocalConfiguration.current.screenHeightDp.dp * BOTTOM_SHEET_PEEK_HEIGHT_RATIO
+    val navController = rememberNavController()
     val scaffoldState = rememberBottomSheetScaffoldState(bottomSheetState = bottomSheetState)
-
+    val scope = rememberCoroutineScope()
     LaunchedEffect(bottomSheetState.currentValue) {
         if (bottomSheetState.currentValue == SheetValue.Hidden) {
             onDismissRequest()
         }
     }
 
-    BottomSheetScaffold(
-        modifier =
-            Modifier.windowInsetsPadding(WindowInsets.statusBars.union(WindowInsets.displayCutout)),
-        scaffoldState = scaffoldState,
-        sheetPeekHeight = peekHeight,
-        sheetShape = MaterialTheme.shapes.extraLarge,
-        sheetContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-        sheetContentColor = MaterialTheme.colorScheme.onSurface,
-        sheetShadowElevation = 8.dp,
-        containerColor = Color.Transparent,
-        sheetContent = {
-            Column(
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Draw a scrim behind the scaffold when the sheet is not hidden
+        if (bottomSheetState.currentValue != SheetValue.Hidden) {
+            Box(
                 modifier =
-                    Modifier.fillMaxSize().padding(vertical = 8.dp).testTag(BOTTOM_SHEET_TEST_TAG),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                when (val state = uiState) {
-                    is ContactsUiState.Loading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.testTag(BOTTOM_SHEET_LOADING_INDICATOR_TEST_TAG)
-                            )
-                        }
-                    }
-
-                    is ContactsUiState.Error -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize().padding(16.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = state.message,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.error,
-                            )
-                        }
-                    }
-
-                    is ContactsUiState.Success -> {
-                        TopBar()
-                        ContactsList(contacts = state.contacts, displayMode = state.displayMode)
-                    }
-                }
-            }
-        },
-    ) { /* Empty content of the screen that appears behind the bottom sheet. */
+                    Modifier.fillMaxSize()
+                        .background(MaterialTheme.colorScheme.scrim.copy(alpha = SCRIM_ALPHA))
+                        .testTag(SCRIM_TEST_TAG)
+            )
+        }
+        BottomSheetScaffold(
+            modifier =
+                Modifier.windowInsetsPadding(
+                    WindowInsets.statusBars.union(WindowInsets.displayCutout)
+                ),
+            scaffoldState = scaffoldState,
+            sheetPeekHeight = peekHeight,
+            sheetShape = MaterialTheme.shapes.extraLarge,
+            sheetContainerColor = MaterialTheme.colorScheme.surfaceContainer,
+            sheetContentColor = MaterialTheme.colorScheme.onSurface,
+            sheetShadowElevation = 8.dp,
+            containerColor = Color.Transparent,
+            sheetContent = {
+                ContactsPickerNavHost(
+                    navController,
+                    uiState,
+                    onExpandRequest = { scope.launch { bottomSheetState.expand() } },
+                    modifier = Modifier.testTag(BOTTOM_SHEET_TEST_TAG),
+                )
+            },
+        ) { /* Empty content of the screen that appears behind the bottom sheet. */
+        }
     }
 }

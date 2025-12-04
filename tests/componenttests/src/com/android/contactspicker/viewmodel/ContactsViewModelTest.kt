@@ -21,17 +21,19 @@ import android.content.flags.Flags
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
-import android.provider.ContactsContract
+import android.provider.ContactsContract.CommonDataKinds.Email
+import android.provider.ContactsContract.CommonDataKinds.Phone
 import com.android.contactspicker.ContactsUiState
-import com.android.contactspicker.DisplayMode
+import com.android.contactspicker.data.model.DisplayNameContact
+import com.android.contactspicker.data.model.EmailContact
+import com.android.contactspicker.data.model.EmailEntry
+import com.android.contactspicker.fakes.FakeContactsRepository
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -46,12 +48,14 @@ class ContactsViewModelTest {
 
     @get:Rule val checkFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
     private val testDispatcher = StandardTestDispatcher()
+    private lateinit var fakeRepository: FakeContactsRepository
     private lateinit var viewModel: ContactsViewModel
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        viewModel = ContactsViewModel()
+        fakeRepository = FakeContactsRepository()
+        viewModel = ContactsViewModel(fakeRepository)
     }
 
     @After
@@ -61,85 +65,49 @@ class ContactsViewModelTest {
 
     @Test
     fun processIntent_setsLoadingThenSuccessState() = runTest {
+        val testContacts = listOf(DisplayNameContact(1L, "Test"))
+        fakeRepository.setInitialContacts(testContacts)
         val collectedStates = mutableListOf<ContactsUiState>()
+        val job = launch { viewModel.uiState.toList(collectedStates) }
 
-        val collectorJob =
-            launch(UnconfinedTestDispatcher(testScheduler)) {
-                viewModel.uiState.toList(collectedStates)
-            }
-
-        assertThat(collectedStates.first() is ContactsUiState.Loading).isTrue()
-
-        viewModel.processIntent(
-            Intent.ACTION_PICK,
-            ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE,
-        )
+        viewModel.processIntent(Intent.ACTION_PICK, Phone.CONTENT_TYPE)
+        testDispatcher.scheduler.advanceUntilIdle()
 
         assertThat(collectedStates).hasSize(2)
         assertThat(collectedStates[0] is ContactsUiState.Loading).isTrue()
         assertThat(collectedStates[1] is ContactsUiState.Success).isTrue()
 
-        collectorJob.cancel()
+        job.cancel()
     }
 
     @Test
-    fun processIntent_withEmailPickIntent_setsSuccessStateWithEmailMode() = runTest {
-        viewModel.processIntent(
-            Intent.ACTION_PICK,
-            ContactsContract.CommonDataKinds.Email.CONTENT_TYPE,
-        )
+    fun processIntent_whenRepositorySucceeds_setsSuccessState() = runTest {
+        val testContacts =
+            listOf(
+                EmailContact(
+                    1L,
+                    "Test",
+                    listOf(EmailEntry(id = 11L, address = "alice@wonderland.org", label = "Home")),
+                )
+            )
+        fakeRepository.setInitialContacts(testContacts)
 
-        val uiState = viewModel.uiState.value
-        assertThat(uiState).isInstanceOf(ContactsUiState.Success::class.java)
+        viewModel.processIntent(Intent.ACTION_PICK, Email.CONTENT_TYPE)
+        testDispatcher.scheduler.advanceUntilIdle()
 
-        val successState = uiState as ContactsUiState.Success
-        assertThat(successState.displayMode).isEqualTo(DisplayMode.EMAIL_SELECTION)
-        assertThat(successState.contacts).hasSize(10)
-    }
-
-    @Test
-    fun processIntent_withPhonePickIntent_setsSuccessStateWithPhoneMode() = runTest {
-        viewModel.processIntent(
-            Intent.ACTION_PICK,
-            ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE,
-        )
-
-        val uiState = viewModel.uiState.value
-        assertThat(uiState).isInstanceOf(ContactsUiState.Success::class.java)
-
-        val successState = uiState as ContactsUiState.Success
-        assertThat(successState.displayMode).isEqualTo(DisplayMode.PHONE_SELECTION)
-        assertThat(successState.contacts).hasSize(10)
-    }
-
-    @Test
-    fun processIntent_withContactPickIntent_setsSuccessStateWithContactMode() = runTest {
-        viewModel.processIntent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_TYPE)
-
-        val uiState = viewModel.uiState.value
-        assertThat(uiState).isInstanceOf(ContactsUiState.Success::class.java)
-
-        val successState = uiState as ContactsUiState.Success
-        assertThat(successState.displayMode).isEqualTo(DisplayMode.CONTACT_SELECTION)
-        assertThat(successState.contacts).hasSize(10)
+        val successState = viewModel.uiState.value as ContactsUiState.Success
+        assertThat(successState.contacts).isEqualTo(testContacts)
     }
 
     @Test
     fun processIntent_withInvalidAction_setsErrorState() = runTest {
-        viewModel.processIntent("com.android.contactspicker.INVALID_ACTION", null)
+        val testException = IllegalArgumentException("Unsupported action")
+        fakeRepository.setException(testException)
 
-        val uiState = viewModel.uiState.value
-        assertThat(uiState).isInstanceOf(ContactsUiState.Error::class.java)
+        viewModel.processIntent("INVALID_ACTION", null)
+        testDispatcher.scheduler.advanceUntilIdle()
 
-        val errorState = uiState as ContactsUiState.Error
-        assertThat(errorState.message).isEqualTo("Invalid intent action or type.")
-    }
-
-    @Test
-    fun processIntent_withNullAction_setsErrorState() = runTest {
-        viewModel.processIntent(null, ContactsContract.Contacts.CONTENT_TYPE)
-
-        val uiState = viewModel.uiState.value
-        assertThat(uiState).isInstanceOf(ContactsUiState.Error::class.java)
+        val errorState = viewModel.uiState.value as ContactsUiState.Error
+        assertThat(errorState.message).isEqualTo("Unsupported action")
     }
 }

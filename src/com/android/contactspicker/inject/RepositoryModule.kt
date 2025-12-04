@@ -5,7 +5,7 @@
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -13,14 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.android.contactspicker
+package com.android.contactspicker.inject
 
-/**
- * Defines the different display modes for the Contacts Picker. It determines which contact details
- * are shown in the list.
- */
-enum class DisplayMode {
-    CONTACT_SELECTION,
-    EMAIL_SELECTION,
-    PHONE_SELECTION,
+import com.android.contactspicker.data.repository.ContactsRepository
+import com.android.contactspicker.data.repository.ContactsRepositoryImpl
+import dagger.Binds
+import dagger.Module
+import dagger.hilt.InstallIn
+import dagger.hilt.android.components.ViewModelComponent
+
+@Module
+@InstallIn(ViewModelComponent::class)
+abstract class RepositoryModule {
+    @Binds
+    abstract fun bindContactsRepository(
+        contactsRepositoryImpl: ContactsRepositoryImpl
+    ): ContactsRepository
 }
