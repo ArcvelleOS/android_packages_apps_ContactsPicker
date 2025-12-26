@@ -16,20 +16,26 @@
 package com.android.contactspicker.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.android.contactspicker.ContactsUiState
+import com.android.contactspicker.data.model.Contact
 import com.android.contactspicker.ui.pickerscreen.ContactsPickerScreen
 import com.android.contactspicker.ui.privacydetails.PrivacyDetailsScreen
 
 @Composable
 fun ContactsPickerNavHost(
     navController: NavHostController,
-    uiState: ContactsUiState,
+    uiState: State<ContactsUiState>,
+    onToggleContactSelection: (Contact) -> Unit,
+    onToggleEntrySelection: (Long, Long) -> Unit,
     onExpandRequest: () -> Unit,
+    onQueryChange: (String) -> Unit,
+    onExitSearch: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     NavHost(
@@ -39,16 +45,23 @@ fun ContactsPickerNavHost(
     ) {
         composable(ContactsPickerRoute.route) {
             ContactsPickerScreen(
-                uiState,
-                onMoreDetails = {
+                uiState = uiState,
+                onToggleContactSelection = onToggleContactSelection,
+                onToggleEntrySelection = onToggleEntrySelection,
+                onPrivacyBannerMoreDetails = {
                     navController.navigateToAndPopUpToStart(PrivacyDetailsRoute.route)
                 },
                 onExpandRequest = onExpandRequest,
+                onQueryChange = onQueryChange,
+                onExitSearch = onExitSearch,
             )
         }
 
         composable(PrivacyDetailsRoute.route) {
-            PrivacyDetailsScreen(onBackPressed = { navController.popBackStack() })
+            PrivacyDetailsScreen(
+                onBackPressed = { navController.popBackStack() },
+                uiState = uiState,
+            )
         }
     }
 }

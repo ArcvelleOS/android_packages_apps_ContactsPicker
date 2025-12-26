@@ -17,20 +17,27 @@
 package com.android.contactspicker
 
 import android.app.Activity
+import android.app.ApplicationPackageManager
+import android.app.Instrumentation
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.flags.Flags
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.platform.test.annotations.RequiresFlagsDisabled
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import android.provider.ContactsContract
+import androidx.collection.longObjectMapOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.lifecycle.Lifecycle
@@ -38,25 +45,34 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.intent.Intents
 import androidx.test.espresso.intent.matcher.IntentMatchers.hasAction
+import androidx.test.espresso.intent.matcher.IntentMatchers.hasComponent
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import com.android.contactspicker.Flags.FLAG_ENABLE_ACTION_PICK_TAKEOVER_IN_DROIDFOOD
+import com.android.contactspicker.data.model.DisplayNameContact
 import com.android.contactspicker.inject.ActivityModule
 import com.android.contactspicker.inject.AppModule
 import com.android.contactspicker.provider.CallingPackageProvider
 import com.android.contactspicker.ui.components.BOTTOM_SHEET_TEST_TAG
+import com.android.contactspicker.viewmodel.ContactsViewModel
 import com.google.common.truth.Truth.assertThat
 import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.UninstallModules
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertThrows
 import org.junit.Before
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.anyString
+import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.doNothing
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
@@ -74,11 +90,24 @@ class ContactsPickerActivityTest {
     private val context: Context = ApplicationProvider.getApplicationContext()
     private lateinit var baseIntent: Intent
 
-    @BindValue @JvmField val mockPackageManager: PackageManager = mock()
+    @BindValue @JvmField val mockPackageManager: ApplicationPackageManager = mock()
 
     @BindValue @JvmField val mockCallingPackageProvider: CallingPackageProvider = mock()
 
+    @BindValue val mockViewModel: ContactsViewModel = mock()
+
     private lateinit var testPackageName: String
+
+    private val testUri = Uri.parse("content://contacts/1")
+    private val testUri2 = Uri.parse("content://data/10")
+    private val testContact =
+        DisplayNameContact(
+            id = 1,
+            displayName = "Test",
+            isFavorite = false,
+            profilePictureUri = null,
+            lookupKey = "test_lookup",
+        )
 
     @Before
     fun setUp() {
@@ -86,6 +115,14 @@ class ContactsPickerActivityTest {
         hiltRule.inject()
 
         testPackageName = context.packageName
+        // TODO(b/456756675): remove grantRuntimePermission once the pregrant permission issue is
+        // solved.
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.targetContext.packageName
+        instrumentation.uiAutomation.grantRuntimePermission(
+            instrumentation.targetContext.packageName,
+            "android.permission.READ_CONTACTS",
+        )
         val appInfo = ApplicationInfo().apply { targetSdkVersion = 37 }
         whenever(mockPackageManager.getApplicationInfo(testPackageName, 0)).doReturn(appInfo)
         whenever(mockCallingPackageProvider.get()).doReturn(testPackageName)
@@ -94,6 +131,20 @@ class ContactsPickerActivityTest {
                 action = Intent.ACTION_PICK
                 type = ContactsContract.Contacts.CONTENT_TYPE
             }
+        val successState =
+            MutableStateFlow(
+                ContactsListState.Success(
+                    emptyList(),
+                    longObjectMapOf(),
+                    isMultiSelectEnabled = false,
+                    callingAppName = null,
+                    requestedMimeTypes = emptyList(),
+                )
+            )
+        whenever(mockViewModel.uiState).thenReturn(successState)
+        doNothing()
+            .whenever(mockViewModel)
+            .processIntent(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull())
     }
 
     @After
@@ -109,7 +160,6 @@ class ContactsPickerActivityTest {
         }
     }
 
-    @Ignore("b/452618303") // TODO(452618303): Re-enable once fixed.
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
     fun topBarSearchText_isDisplayed() {
@@ -157,9 +207,11 @@ class ContactsPickerActivityTest {
 
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
+    @RequiresFlagsDisabled(FLAG_ENABLE_ACTION_PICK_TAKEOVER_IN_DROIDFOOD)
     fun lowTargetSdk_forwardsToChooser() {
         val appInfo = ApplicationInfo().apply { targetSdkVersion = 36 }
         whenever(mockPackageManager.getApplicationInfo(testPackageName, 0)).doReturn(appInfo)
+        whenever(mockPackageManager.getPreferredActivities(any(), any(), any())).thenAnswer { 0 }
 
         val scenario = ActivityScenario.launch<ContactsPickerActivity>(baseIntent)
 
@@ -167,7 +219,6 @@ class ContactsPickerActivityTest {
         assertThat(scenario.state).isEqualTo(Lifecycle.State.DESTROYED)
     }
 
-    @Ignore("b/452618303") // TODO(452618303): Re-enable once fixed.
     @Test
     @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
     fun packageManagerThrowsException_handlesInternally() {
@@ -195,5 +246,250 @@ class ContactsPickerActivityTest {
 
         assertThat(scenario.state).isEqualTo(Lifecycle.State.DESTROYED)
         assertThat(scenario.result.resultCode).isEqualTo(Activity.RESULT_CANCELED)
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
+    fun handleDoneClicked_withSingleSelection_setsResultOkAndFinishes() = runTest {
+        val successStateSingleSelect =
+            MutableStateFlow(
+                ContactsListState.Success(
+                    availableContacts = listOf(testContact),
+                    selectedContacts = longObjectMapOf(testContact.id, setOf(testContact.id)),
+                    isMultiSelectEnabled = false,
+                    callingAppName = null,
+                    requestedMimeTypes = emptyList(),
+                )
+            )
+        whenever(mockViewModel.uiState).thenReturn(successStateSingleSelect)
+        whenever(mockViewModel.prepareSelectionResult()).thenReturn(listOf(testUri))
+
+        val scenario = ActivityScenario.launchActivityForResult<ContactsPickerActivity>(baseIntent)
+
+        composeTestRule.onNodeWithText("Done").performClick()
+
+        composeTestRule.awaitIdle()
+
+        val result = scenario.result
+        assertThat(result.resultCode).isEqualTo(Activity.RESULT_OK)
+
+        val resultIntent = result.resultData
+        assertThat(resultIntent).isNotNull()
+        assertThat(resultIntent.data).isEqualTo(testUri)
+        assertThat(resultIntent.clipData).isNull()
+        assertThat(resultIntent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION).isEqualTo(1)
+
+        scenario.onActivity { activity ->
+            if (activity != null) {
+                assertThat(activity.isFinishing).isTrue()
+            }
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
+    fun handleDoneClicked_withMultiSelection_setsResultOkWithClipData() {
+        val successStateMultiSelect =
+            MutableStateFlow(
+                ContactsListState.Success(
+                    availableContacts = listOf(testContact),
+                    selectedContacts = longObjectMapOf(testContact.id, setOf(testContact.id)),
+                    isMultiSelectEnabled = true,
+                    callingAppName = null,
+                    requestedMimeTypes = emptyList(),
+                )
+            )
+        whenever(mockViewModel.uiState).thenReturn(successStateMultiSelect)
+        // Set up ViewModel to return multiple URIs
+        whenever(mockViewModel.prepareSelectionResult()).thenReturn(listOf(testUri, testUri2))
+
+        val scenario = ActivityScenario.launchActivityForResult<ContactsPickerActivity>(baseIntent)
+
+        // ACT
+        composeTestRule.onNodeWithText("Done").performClick()
+
+        // ASSERT
+        val result = scenario.result
+        assertThat(result.resultCode).isEqualTo(Activity.RESULT_OK)
+
+        val resultIntent = result.resultData as Intent
+
+        assertThat(resultIntent).isNotNull()
+        assertThat(resultIntent.data).isNull()
+        assertThat(resultIntent.clipData).isNotNull()
+        assertThat(resultIntent.clipData!!.itemCount).isEqualTo(2)
+        assertThat(resultIntent.clipData!!.getItemAt(0).uri).isEqualTo(testUri)
+        assertThat(resultIntent.clipData!!.getItemAt(1).uri).isEqualTo(testUri2)
+        assertThat(resultIntent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION).isEqualTo(1)
+        scenario.onActivity { activity ->
+            if (activity != null) {
+                assertThat(activity.isFinishing).isTrue()
+            }
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
+    fun handleDoneClicked_withNoSelection_setsResultCanceled() {
+        val successStateSingleSelect =
+            MutableStateFlow(
+                ContactsListState.Success(
+                    availableContacts = listOf(testContact),
+                    selectedContacts = longObjectMapOf(testContact.id, setOf(testContact.id)),
+                    isMultiSelectEnabled = false,
+                    callingAppName = null,
+                    requestedMimeTypes = emptyList(),
+                )
+            )
+        whenever(mockViewModel.uiState).thenReturn(successStateSingleSelect)
+        whenever(mockViewModel.prepareSelectionResult()).thenReturn(emptyList())
+
+        val scenario = ActivityScenario.launchActivityForResult<ContactsPickerActivity>(baseIntent)
+
+        composeTestRule.onNodeWithText("Done").performClick()
+
+        val result = scenario.result
+        assertThat(result.resultCode).isEqualTo(Activity.RESULT_CANCELED)
+        scenario.onActivity { activity ->
+            if (activity != null) {
+                assertThat(activity.isFinishing).isTrue()
+            }
+        }
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
+    @RequiresFlagsDisabled(FLAG_ENABLE_ACTION_PICK_TAKEOVER_IN_DROIDFOOD)
+    fun lowTargetSdk_withPreferredActivity_startsPreferredActivity() {
+        val appInfo = ApplicationInfo().apply { targetSdkVersion = 36 }
+        whenever(mockPackageManager.getApplicationInfo(testPackageName, 0)).doReturn(appInfo)
+        val preferredComponent =
+            ComponentName("com.preferred.app", "com.preferred.app.PickerActivity")
+        Intents.intending(hasComponent(preferredComponent))
+            .respondWith(Instrumentation.ActivityResult(Activity.RESULT_OK, null))
+        whenever(mockPackageManager.getPreferredActivities(any(), any(), anyOrNull())).thenAnswer {
+            val filters = it.getArgument<MutableList<IntentFilter>>(0)
+            val activities = it.getArgument<MutableList<ComponentName>>(1)
+            val filter = IntentFilter(Intent.ACTION_PICK)
+            filter.addCategory(Intent.CATEGORY_DEFAULT)
+            filter.addDataType(ContactsContract.Contacts.CONTENT_TYPE)
+            filters.add(filter)
+            activities.add(preferredComponent)
+            1
+        }
+
+        val scenario = ActivityScenario.launch<ContactsPickerActivity>(baseIntent)
+
+        Intents.intended(hasComponent(preferredComponent))
+        assertThat(scenario.state).isEqualTo(Lifecycle.State.DESTROYED)
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
+    fun extraUseSystemContactsPickerAndLowSdk_handlesInternally() {
+        val appInfo = ApplicationInfo().apply { targetSdkVersion = 36 }
+        whenever(mockPackageManager.getApplicationInfo(testPackageName, 0)).doReturn(appInfo)
+        whenever(mockPackageManager.getPreferredActivities(any(), any(), any())).thenAnswer { 0 }
+
+        val intentWithExtra =
+            Intent(baseIntent).apply { putExtra(Intent.EXTRA_USE_SYSTEM_CONTACTS_PICKER, true) }
+        val scenario = ActivityScenario.launch<ContactsPickerActivity>(intentWithExtra)
+
+        composeTestRule
+            .onNodeWithText(
+                context.getString(R.string.contacts_picker_top_bar_search_placeholder_hint)
+            )
+            .assertIsDisplayed()
+
+        scenario.onActivity { activity -> assertThat(activity.isFinishing).isFalse() }
+        assertThat(Intents.getIntents().filter { it.action == Intent.ACTION_CHOOSER }).isEmpty()
+    }
+
+    @Test
+    @RequiresFlagsEnabled(
+        Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER,
+        FLAG_ENABLE_ACTION_PICK_TAKEOVER_IN_DROIDFOOD,
+    )
+    fun enableActionPickTakeoverInDroidfoodAndLowSdk_handlesInternally() {
+        val appInfo = ApplicationInfo().apply { targetSdkVersion = 36 }
+        whenever(mockPackageManager.getApplicationInfo(testPackageName, 0)).doReturn(appInfo)
+        whenever(mockPackageManager.getPreferredActivities(any(), any(), any())).thenAnswer { 0 }
+
+        val scenario = ActivityScenario.launch<ContactsPickerActivity>(baseIntent)
+
+        composeTestRule
+            .onNodeWithText(
+                context.getString(R.string.contacts_picker_top_bar_search_placeholder_hint)
+            )
+            .assertIsDisplayed()
+
+        scenario.onActivity { activity -> assertThat(activity.isFinishing).isFalse() }
+        assertThat(Intents.getIntents().filter { it.action == Intent.ACTION_CHOOSER }).isEmpty()
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
+    fun privacyBanner_showsAppName_andRetainsOnRotation() = runTest {
+        val testAppName = "Test App"
+        val successState =
+            MutableStateFlow(
+                ContactsListState.Success(
+                    availableContacts = emptyList(),
+                    selectedContacts = longObjectMapOf(),
+                    isMultiSelectEnabled = false,
+                    callingAppName = testAppName,
+                    requestedMimeTypes = emptyList(),
+                )
+            )
+        whenever(mockViewModel.uiState).thenReturn(successState)
+
+        val scenario = ActivityScenario.launch<ContactsPickerActivity>(baseIntent)
+
+        composeTestRule.awaitIdle()
+        composeTestRule
+            .onNodeWithText(context.getString(R.string.privacy_banner_description, testAppName))
+            .assertIsDisplayed()
+
+        scenario.recreate()
+
+        composeTestRule.awaitIdle()
+        composeTestRule
+            .onNodeWithText(context.getString(R.string.privacy_banner_description, testAppName))
+            .assertIsDisplayed()
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
+    fun privacyDetails_page_showsAppName_andRetainsOnRotation() = runTest {
+        val testAppName = "Test App"
+        val successState =
+            MutableStateFlow(
+                ContactsListState.Success(
+                    availableContacts = emptyList(),
+                    selectedContacts = longObjectMapOf(),
+                    isMultiSelectEnabled = false,
+                    callingAppName = testAppName,
+                    requestedMimeTypes = emptyList(),
+                )
+            )
+        whenever(mockViewModel.uiState).thenReturn(successState)
+
+        val scenario = ActivityScenario.launch<ContactsPickerActivity>(baseIntent)
+
+        composeTestRule
+            .onNodeWithText(context.getString(R.string.privacy_banner_more_details))
+            .performClick()
+
+        composeTestRule.awaitIdle()
+        composeTestRule
+            .onNodeWithText(context.getString(R.string.privacy_details_description, testAppName))
+            .assertIsDisplayed()
+
+        scenario.recreate()
+
+        composeTestRule.awaitIdle()
+        composeTestRule
+            .onNodeWithText(context.getString(R.string.privacy_details_description, testAppName))
+            .assertIsDisplayed()
     }
 }

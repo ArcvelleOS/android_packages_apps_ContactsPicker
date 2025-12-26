@@ -18,6 +18,7 @@ package com.android.contactspicker.ui.privacydetails
 import android.provider.ContactsContract
 import androidx.annotation.OpenForTesting
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
@@ -67,16 +68,18 @@ private val POSSIBLE_INTENT_EXTRA_DATA_FIELDS =
         ContactsContract.CommonDataKinds.Nickname.CONTENT_ITEM_TYPE,
     )
 
-// TODO(b/446667703) : Implement logic to dynamically fetch the name of the calling application.
 @Composable
 fun PrivacyDetailsBody(
     modifier: Modifier = Modifier,
-    appName: String = "Sample_App",
+    callingAppName: String?,
     requestedDataFields: List<String> = POSSIBLE_INTENT_EXTRA_DATA_FIELDS,
 ) {
     LazyColumn(modifier = modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 64.dp)) {
         item {
-            PrivacyDescription(appName, modifier = Modifier.padding(PADDING_PRIVACY_DESCRIPTION))
+            PrivacyDescription(
+                callingAppName ?: stringResource(R.string.default_calling_app_name),
+                modifier = Modifier.padding(PADDING_PRIVACY_DESCRIPTION),
+            )
         }
         item {
             ContactDataFieldsListHeader(
@@ -111,7 +114,7 @@ fun LazyListScope.contactDataFieldList(
     requestedDataFields: List<String>,
     modifier: Modifier = Modifier,
 ) {
-    val dataFieldItems = ContactDataFieldMapper.mapToSortedItems(requestedDataFields)
+    val dataFieldItems = ContactDataFieldProvider.getContactDataFieldItems(requestedDataFields)
     val dataFieldItemsSize = dataFieldItems.size
 
     itemsIndexed(items = dataFieldItems) { index, item ->
@@ -160,12 +163,20 @@ fun ContactDataFieldRow(
                     )
                 }
             }
-            Text(
-                text = stringResource(id = data.headerTextResId),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1.0f),
-            )
+            Column(modifier = Modifier.weight(1.0f)) {
+                Text(
+                    text = stringResource(id = data.headerTextResId),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                data.descriptionTextResId?.let { descriptionResId ->
+                    Text(
+                        text = stringResource(id = descriptionResId),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }

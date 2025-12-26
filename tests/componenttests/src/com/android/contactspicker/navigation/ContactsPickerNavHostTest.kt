@@ -20,6 +20,9 @@ import android.content.flags.Flags
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
+import androidx.collection.longObjectMapOf
+import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -30,6 +33,7 @@ import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.testing.TestNavHostController
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.android.contactspicker.ContactsListState
 import com.android.contactspicker.ContactsUiState
 import com.android.contactspicker.R
 import com.android.contactspicker.ui.pickerscreen.CONTACTS_PICKER_SCREEN_TEST_TAG
@@ -63,7 +67,17 @@ class ContactsPickerNavHostTest {
 
     @Test
     fun fromContactsPickerScreen_clickingMoreDetails_navigatesToPrivacyScreen() {
-        setupNavHostInitialState(ContactsUiState.Success(emptyList()))
+        setupNavHostInitialState(
+            mutableStateOf(
+                ContactsListState.Success(
+                    availableContacts = emptyList(),
+                    selectedContacts = longObjectMapOf(),
+                    isMultiSelectEnabled = false,
+                    callingAppName = null,
+                    requestedMimeTypes = emptyList(),
+                )
+            )
+        )
         val moreDetailsButton =
             composeTestRule.onNodeWithText(context.getString(R.string.privacy_banner_more_details))
         moreDetailsButton.assertIsDisplayed()
@@ -73,7 +87,17 @@ class ContactsPickerNavHostTest {
 
     @Test
     fun fromPrivacyScreen_clickingBack_navigatesToContactsPickerScreen() {
-        setupNavHostInitialState(ContactsUiState.Success(emptyList()))
+        setupNavHostInitialState(
+            mutableStateOf(
+                ContactsListState.Success(
+                    availableContacts = emptyList(),
+                    selectedContacts = longObjectMapOf(),
+                    isMultiSelectEnabled = false,
+                    callingAppName = null,
+                    requestedMimeTypes = emptyList(),
+                )
+            )
+        )
         // Navigate to the privacy details screen
         composeTestRule
             .onNodeWithText(context.getString(R.string.privacy_banner_more_details))
@@ -91,7 +115,7 @@ class ContactsPickerNavHostTest {
     }
 
     private fun setupNavHostInitialState(
-        initialUiState: ContactsUiState = ContactsUiState.Loading
+        initialUiState: State<ContactsUiState> = mutableStateOf(ContactsListState.Loading)
     ) {
         composeTestRule.setContent {
             ContactsPickerAppTheme {
@@ -99,6 +123,10 @@ class ContactsPickerNavHostTest {
                     navController = navController,
                     uiState = initialUiState,
                     onExpandRequest = {},
+                    onToggleContactSelection = {},
+                    onToggleEntrySelection = { _, _ -> },
+                    onQueryChange = {},
+                    onExitSearch = {},
                 )
             }
         }
