@@ -19,6 +19,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.android.contactspicker.room.converter.MimeTypeConverter
 
 /**
  * Represents a Room entity that stores whether the privacy banner has been shown for a specific app
@@ -27,19 +28,22 @@ import androidx.room.PrimaryKey
  * This entity is used to prevent showing the same privacy banner repeatedly to the user for the
  * same app and mimeType combination.
  *
- * For example, if a banner is shown for an app with `appUid = "com.example.app"` requesting
- * `["phone", "email"]`, a row is inserted. If the same app later requests only `["phone"]`, a new,
- * distinct row will be inserted for that combination. This allows multiple entries for the same
- * `appUid` as long as the requested `mimeTypes` combinations are different.
+ * For example, if a banner is shown for an app with `appUid = 10327` requesting `["phone",
+ * "email"]`, a row is inserted. If the same app later requests only `["phone"]`, a new, distinct
+ * row will be inserted for that combination. This allows multiple entries for the same `appUid` as
+ * long as the requested `mimeTypes` combinations are different.
  *
  * @property id The unique identifier for the database record.
  * @property appUid The unique identifier of the application for which the banner was shown.
- * @property mimeTypes An integer bitmask representing the set of contact data MIME types for which
- *   the banner was shown. This is managed by [MimeTypeConverter].
+ * @property mimeTypes list contact data MIME types for which the banner was shown. mimeTypes are
+ *   mapped by [MimeTypeConverter] into bitMask before persisting in db
  */
-@Entity(tableName = "privacy_banner_shown", indices = [Index(value = ["app_uid"])])
+@Entity(
+    tableName = "privacy_banner_shown",
+    indices = [Index(value = ["app_uid", "mime_types"], unique = true)],
+)
 data class PrivacyBannerShown(
     @PrimaryKey(autoGenerate = true) @ColumnInfo(name = "_id") val id: Int = 0,
-    @ColumnInfo(name = "app_uid") val appUid: String,
-    @ColumnInfo(name = "mime_types") val mimeTypes: Int,
+    @ColumnInfo(name = "app_uid") val appUid: Int,
+    @ColumnInfo(name = "mime_types") val mimeTypes: List<String>,
 )

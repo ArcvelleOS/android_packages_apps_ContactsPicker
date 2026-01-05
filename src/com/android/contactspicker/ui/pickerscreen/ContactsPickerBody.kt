@@ -16,9 +16,11 @@
 package com.android.contactspicker.ui.pickerscreen
 
 import androidx.annotation.VisibleForTesting
-import androidx.collection.LongObjectMap
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -36,6 +38,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.android.contactspicker.R
 import com.android.contactspicker.data.model.Contact
+import com.android.contactspicker.data.model.ContactsSelection
+import com.android.contactspicker.ui.pickerscreen.SectionKey.IconKey
+import com.android.contactspicker.ui.pickerscreen.SectionKey.LetterKey
 
 const val CONTACTS_LIST_TEST_TAG = "contacts_list"
 
@@ -60,9 +65,10 @@ const val CONTACTS_LIST_TEST_TAG = "contacts_list"
 fun ContactsPickerBody(
     contacts: List<Contact>,
     callingAppName: String?,
+    showPrivacyBanner: Boolean,
     onPrivacyBannerMoreDetails: () -> Unit,
     onPrivacyBannerDismissRequest: () -> Unit,
-    selectedContacts: LongObjectMap<Set<Long>>,
+    selectedContacts: ContactsSelection,
     isMultiSelectEnabled: Boolean,
     onToggleContactSelection: (Contact) -> Unit,
     onToggleEntrySelection: (contactId: Long, entryId: Long) -> Unit,
@@ -71,25 +77,23 @@ fun ContactsPickerBody(
     val groupedContacts =
         remember(contacts) {
             // TODO(b/436818961): consider moving the grouping logic to the view models
-            contacts.groupBy {
-                val firstChar = it.displayName.firstOrNull()
-                if (firstChar?.isLetter() == true) {
-                    SectionKey.LetterKey(firstChar.uppercaseChar())
-                } else {
-                    SectionKey.IconKey(Icons.Default.Mood, emojiHeaderContentDesc)
-                }
-            }
+            contacts.groupBy { it.getSectionKey(emojiHeaderContentDesc) }
         }
 
     val favoriteContacts = remember(contacts) { contacts.filter { it.isFavorite } }
 
-    LazyColumn(modifier = Modifier.fillMaxWidth().testTag(CONTACTS_LIST_TEST_TAG)) {
-        item(key = "privacy_banner") {
-            PrivacyBanner(
-                callingAppName = callingAppName,
-                onMoreDetails = onPrivacyBannerMoreDetails,
-                onDismissRequest = onPrivacyBannerDismissRequest,
-            )
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth().testTag(CONTACTS_LIST_TEST_TAG),
+        contentPadding = WindowInsets.navigationBars.asPaddingValues(),
+    ) {
+        if (showPrivacyBanner) {
+            item(key = "privacy_banner") {
+                PrivacyBanner(
+                    callingAppName = callingAppName,
+                    onMoreDetails = onPrivacyBannerMoreDetails,
+                    onDismissRequest = onPrivacyBannerDismissRequest,
+                )
+            }
         }
 
         favoritesSection(
@@ -103,9 +107,8 @@ fun ContactsPickerBody(
         groupedContacts.forEach { (sectionKey, contactsInGroup) ->
             stickyHeader(key = "header_$sectionKey") {
                 when (sectionKey) {
-                    is SectionKey.LetterKey -> SectionHeader(sectionKey.letter)
-                    is SectionKey.IconKey ->
-                        SectionHeader(sectionKey.icon, sectionKey.contentDescription)
+                    is LetterKey -> SectionHeader(sectionKey.letter)
+                    is IconKey -> SectionHeader(sectionKey.icon, sectionKey.contentDescription)
                 }
             }
             val groupSize = contactsInGroup.size
@@ -130,6 +133,7 @@ fun ContactsPickerBody(
                         position = position,
                         selectedEntries = selectedContacts[contact.id],
                         isMultiSelectEnabled = isMultiSelectEnabled,
+                        isSearchMode = false,
                         onToggleContactSelection = onToggleContactSelection,
                         onToggleEntrySelection = onToggleEntrySelection,
                     )
@@ -151,7 +155,7 @@ private fun itemPosition(index: Int, groupSize: Int): ItemPosition {
 /** A helper function to display the "Favorites" section in the LazyColumn. */
 private fun LazyListScope.favoritesSection(
     favoriteContacts: List<Contact>,
-    selectedContacts: LongObjectMap<Set<Long>>,
+    selectedContacts: ContactsSelection,
     isMultiSelectEnabled: Boolean,
     onToggleContactSelection: (Contact) -> Unit,
     onToggleEntrySelection: (contactId: Long, entryId: Long) -> Unit,
@@ -184,11 +188,27 @@ private fun LazyListScope.favoritesSection(
                     position = position,
                     selectedEntries = selectedContacts[contact.id],
                     isMultiSelectEnabled = isMultiSelectEnabled,
+                    isSearchMode = false,
                     onToggleContactSelection = onToggleContactSelection,
                     onToggleEntrySelection = onToggleEntrySelection,
                 )
             }
         }
+    }
+}
+
+/**
+ * Returns the SectionKey for this contact, to be used for grouping in the UI.
+ *
+ * @param nonLetterSectionContentDescription Content description for the icon used for non-letter
+ *   sections.
+ */
+private fun Contact.getSectionKey(nonLetterSectionContentDescription: String): SectionKey {
+    val initial = getDisplayNameInitialLetter()
+    return if (initial != null) {
+        LetterKey(initial)
+    } else {
+        IconKey(Icons.Default.Mood, nonLetterSectionContentDescription)
     }
 }
 

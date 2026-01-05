@@ -23,18 +23,37 @@ import android.widget.Toast
 
 // TODO(b/442397528): support all mime types for ACTION_PICK_CONTACTS
 enum class MimeType(val label: String, val mimeTypeString: String) {
-    EMAIL("Email Addresses", ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE),
-    PHONE("Phone Numbers", ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE),
+    STRUCTURED_NAME("Name", ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE),
+    EMAIL("Email Addresses", ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE),
+    PHONE("Phone Numbers", ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE),
+    ADDRESS("Addresses", ContactsContract.CommonDataKinds.StructuredPostal.CONTENT_ITEM_TYPE),
+    ORGANIZATION("Company", ContactsContract.CommonDataKinds.Organization.CONTENT_ITEM_TYPE),
+    RELATION("Related people", ContactsContract.CommonDataKinds.Relation.CONTENT_ITEM_TYPE),
+    EVENT("Birthday", ContactsContract.CommonDataKinds.Event.CONTENT_ITEM_TYPE),
+    PHOTO("Profile picture", ContactsContract.CommonDataKinds.Photo.CONTENT_ITEM_TYPE),
+    GROUP_MEMBERSHIP(
+        "Contact group",
+        ContactsContract.CommonDataKinds.GroupMembership.CONTENT_ITEM_TYPE,
+    ),
+    WEBSITE("Website", ContactsContract.CommonDataKinds.Website.CONTENT_ITEM_TYPE),
+    NICKNAME("Nickname", ContactsContract.CommonDataKinds.Nickname.CONTENT_ITEM_TYPE),
 }
 
 internal fun buildActionPickContactsIntent(
+    context: Context,
     selectedMimeTypes: Set<MimeType>,
     allowMultiple: Boolean,
-    context: Context,
+    overrideSelectionLimit: Boolean,
+    selectionLimit: Int,
 ): Intent? {
     val intent = Intent(ContactsPickerSessionContract.ACTION_PICK_CONTACTS)
-    intent.type = ContactsContract.Contacts.CONTENT_TYPE
     intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, allowMultiple)
+    if (overrideSelectionLimit) {
+        intent.putExtra(
+            ContactsPickerSessionContract.EXTRA_PICK_CONTACTS_SELECTION_LIMIT,
+            selectionLimit,
+        )
+    }
 
     val requestedDataFields = ArrayList(selectedMimeTypes.map { it.mimeTypeString })
     if (requestedDataFields.isEmpty()) {

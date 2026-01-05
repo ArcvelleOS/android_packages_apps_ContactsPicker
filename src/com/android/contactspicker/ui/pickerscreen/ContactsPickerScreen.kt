@@ -17,14 +17,13 @@ package com.android.contactspicker.ui.pickerscreen
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.dp
 import com.android.contactspicker.ContactsListState
+import com.android.contactspicker.ContactsPreviewState
 import com.android.contactspicker.ContactsUiState
 import com.android.contactspicker.data.model.Contact
 import com.android.contactspicker.ui.components.ContactsListContent
@@ -38,45 +37,52 @@ fun ContactsPickerScreen(
     uiState: State<ContactsUiState>,
     onToggleContactSelection: (Contact) -> Unit,
     onToggleEntrySelection: (Long, Long) -> Unit,
-    onPrivacyBannerMoreDetails: () -> Unit,
+    onNavigateToPrivacyDetails: () -> Unit,
+    onPrivacyBannerDismissRequest: () -> Unit,
     onExpandRequest: () -> Unit,
     onQueryChange: (String) -> Unit,
     onExitSearch: () -> Unit,
+    onBackFromPreview: () -> Unit,
 ) {
     Column(
-        modifier =
-            Modifier.fillMaxSize()
-                .padding(vertical = 8.dp)
-                .testTag(CONTACTS_PICKER_SCREEN_TEST_TAG),
+        modifier = Modifier.fillMaxSize().testTag(CONTACTS_PICKER_SCREEN_TEST_TAG),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        ContactsPickerTopBar(
-            uiState = uiState,
-            onSearchBarToggled = { isExpanded ->
-                if (isExpanded) {
-                    onExpandRequest()
-                    onQueryChange("")
-                } else {
-                    onExitSearch()
-                }
-            },
-            onQueryChange = onQueryChange,
-            onToggleContactSelection = onToggleContactSelection,
-            onToggleEntrySelection = onToggleEntrySelection,
-            onExitSearch = onExitSearch,
-        )
-
-        // TODO(b/449172596): Handle dismissal logic of privacy banner
-
         val uiStateValue = uiState.value
-        if (uiStateValue is ContactsListState) {
-            ContactsListContent(
+        if (uiStateValue is ContactsPreviewState) {
+            PreviewScreen(
+                onBackPressed = onBackFromPreview,
                 uiState = uiStateValue,
-                onPrivacyBannerMoreDetails = onPrivacyBannerMoreDetails,
-                onPrivacyBannerDismissRequest = {},
                 onToggleContactSelection = onToggleContactSelection,
                 onToggleEntrySelection = onToggleEntrySelection,
             )
+        } else {
+            ContactsPickerTopBar(
+                uiState = uiState,
+                onSearchBarToggled = { isExpanded ->
+                    if (isExpanded) {
+                        onExpandRequest()
+                        onQueryChange("")
+                    } else {
+                        onExitSearch()
+                    }
+                },
+                onQueryChange = onQueryChange,
+                onToggleContactSelection = onToggleContactSelection,
+                onToggleEntrySelection = onToggleEntrySelection,
+                onExitSearch = onExitSearch,
+                onShowPrivacyDetailsClick = onNavigateToPrivacyDetails,
+            )
+
+            if (uiStateValue is ContactsListState) {
+                ContactsListContent(
+                    uiState = uiStateValue,
+                    onPrivacyBannerMoreDetails = onNavigateToPrivacyDetails,
+                    onPrivacyBannerDismissRequest = onPrivacyBannerDismissRequest,
+                    onToggleContactSelection = onToggleContactSelection,
+                    onToggleEntrySelection = onToggleEntrySelection,
+                )
+            }
         }
     }
 }

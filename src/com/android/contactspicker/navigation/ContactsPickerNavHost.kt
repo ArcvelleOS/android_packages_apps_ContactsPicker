@@ -20,7 +20,6 @@ import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.android.contactspicker.ContactsUiState
 import com.android.contactspicker.data.model.Contact
@@ -33,12 +32,14 @@ fun ContactsPickerNavHost(
     uiState: State<ContactsUiState>,
     onToggleContactSelection: (Contact) -> Unit,
     onToggleEntrySelection: (Long, Long) -> Unit,
+    onPrivacyBannerDismissRequest: () -> Unit,
     onExpandRequest: () -> Unit,
     onQueryChange: (String) -> Unit,
     onExitSearch: () -> Unit,
     modifier: Modifier = Modifier,
+    onBackFromPreview: () -> Unit,
 ) {
-    NavHost(
+    AnimatedNavHost(
         navController = navController,
         startDestination = ContactsPickerRoute.route,
         modifier = modifier,
@@ -48,12 +49,14 @@ fun ContactsPickerNavHost(
                 uiState = uiState,
                 onToggleContactSelection = onToggleContactSelection,
                 onToggleEntrySelection = onToggleEntrySelection,
-                onPrivacyBannerMoreDetails = {
+                onNavigateToPrivacyDetails = {
                     navController.navigateToAndPopUpToStart(PrivacyDetailsRoute.route)
                 },
+                onPrivacyBannerDismissRequest = onPrivacyBannerDismissRequest,
                 onExpandRequest = onExpandRequest,
                 onQueryChange = onQueryChange,
                 onExitSearch = onExitSearch,
+                onBackFromPreview = onBackFromPreview,
             )
         }
 

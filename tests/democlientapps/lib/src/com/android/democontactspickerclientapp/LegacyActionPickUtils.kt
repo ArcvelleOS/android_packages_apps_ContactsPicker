@@ -16,15 +16,52 @@
 package com.android.democontactspickerclientapp
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
+import android.database.Cursor
 import android.net.Uri
 import android.provider.ContactsContract
+import android.provider.ContactsPickerSessionContract
 import androidx.activity.result.ActivityResult
 
+/**
+ * Builds an Intent for the legacy ACTION_PICK, without any contacts picker flag-guarded extras.
+ *
+ * @param config The current configuration state for the legacy demo.
+ * @param allowMultiple Whether to allow multiple selections.
+ */
+fun buildLegacyPickerIntentWithSystemPickerDisabled(
+    config: LegacyDemoConfigState,
+    allowMultiple: Boolean,
+): Intent {
+    val intent = Intent(Intent.ACTION_PICK)
+    intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, allowMultiple)
+    intent.type =
+        when (config.legacyPickerType) {
+            LegacyPickerType.EMAIL -> ContactsContract.CommonDataKinds.Email.CONTENT_TYPE
+            LegacyPickerType.PHONE -> ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE
+            LegacyPickerType.CONTACT -> ContactsContract.Contacts.CONTENT_TYPE
+        }
+    return intent
+}
+
+/**
+ * Builds an Intent for the legacy ACTION_PICK, including the contacts picker flag-guarded extras.
+ *
+ * @param config The current configuration state for the legacy demo.
+ * @param allowMultiple Whether to allow multiple selections.
+ * @param useSystemPicker Whether to force the system picker. This is a flag-guarded extra.
+ * @param overrideSelectionLimit Whether to override the default selection limit. This is a
+ *   flag-guarded extra.
+ * @param selectionLimit The maximum number of contacts that can be selected. Only used if
+ *   [overrideSelectionLimit] is true.
+ */
 fun buildLegacyPickerIntent(
     config: LegacyDemoConfigState,
     allowMultiple: Boolean,
     useSystemPicker: Boolean = false,
+    overrideSelectionLimit: Boolean,
+    selectionLimit: Int,
 ): Intent {
     val intent = Intent(Intent.ACTION_PICK)
     intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, allowMultiple)
@@ -35,11 +72,93 @@ fun buildLegacyPickerIntent(
             LegacyPickerType.PHONE -> ContactsContract.CommonDataKinds.Phone.CONTENT_TYPE
             LegacyPickerType.CONTACT -> ContactsContract.Contacts.CONTENT_TYPE
         }
+    if (overrideSelectionLimit) {
+        intent.putExtra(
+            ContactsPickerSessionContract.EXTRA_PICK_CONTACTS_SELECTION_LIMIT,
+            selectionLimit,
+        )
+    }
     return intent
 }
 
-// TODO(b/447114080): Access the URIs and display the requested mime types: display name, email, etc
-fun handlePickerResult(result: ActivityResult): String {
+/** Queries the ContentResolver to format the data for display based on the URI type. */
+private fun formatUriData(context: Context, uri: Uri, pickerType: LegacyPickerType): ContactResult {
+    val contentResolver = context.contentResolver
+    val projection =
+        when (pickerType) {
+            LegacyPickerType.EMAIL ->
+                arrayOf(
+                    // Use Contacts.DISPLAY_NAME on purpose to bypass a known bug b/461572507
+                    ContactsContract.Contacts.DISPLAY_NAME,
+                    ContactsContract.CommonDataKinds.Email.ADDRESS,
+                )
+            LegacyPickerType.PHONE ->
+                arrayOf(
+                    ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                    ContactsContract.CommonDataKinds.Phone.NUMBER,
+                )
+            LegacyPickerType.CONTACT ->
+                arrayOf(ContactsContract.Contacts.DISPLAY_NAME, ContactsContract.Contacts._ID)
+        }
+
+    val cursor: Cursor? = contentResolver.query(uri, projection, null, null, null)
+
+    return cursor.use { c ->
+        if (c != null && c.moveToFirst()) {
+            when (pickerType) {
+                LegacyPickerType.EMAIL -> {
+                    val nameIndex = c.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
+                    val addressIndex =
+                        c.getColumnIndex(ContactsContract.CommonDataKinds.Email.ADDRESS)
+                    val name =
+                        if (nameIndex != -1) c.getString(nameIndex) ?: "NULL"
+                        else "No contact index"
+                    val address =
+                        if (addressIndex != -1) c.getString(addressIndex) ?: "NULL"
+                        else "No address index"
+
+                    ContactResult(name, address, "Email", uri.toString())
+                }
+                LegacyPickerType.PHONE -> {
+                    val nameIndex =
+                        c.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME)
+                    val numberIndex =
+                        c.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
+                    val name =
+                        if (nameIndex != -1) c.getString(nameIndex) ?: "NULL"
+                        else "No contact index"
+                    val number =
+                        if (numberIndex != -1) c.getString(numberIndex) ?: "NULL"
+                        else "No phone index"
+                    ContactResult(name, number, "Phone", uri.toString())
+                }
+                LegacyPickerType.CONTACT -> {
+                    val nameIndex = c.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
+                    val idIndex = c.getColumnIndex(ContactsContract.Contacts._ID)
+                    val name =
+                        if (nameIndex != -1) c.getString(nameIndex) ?: "NULL"
+                        else "No contact index"
+                    val id =
+                        if (idIndex != -1) c.getString(idIndex) ?: "NULL" else "No contact ID index"
+                    ContactResult(name, id, "Contact ID", uri.toString())
+                }
+            }
+        } else {
+            ContactResult(
+                contactName = "Error",
+                detail = "Could not retrieve data for URI (Check read permission)",
+                detailLabel = "Error Message",
+                uri = uri.toString(),
+            )
+        }
+    }
+}
+
+fun handlePickerResult(
+    context: Context,
+    result: ActivityResult,
+    pickerType: LegacyPickerType,
+): PickerResult {
     if (result.resultCode == Activity.RESULT_OK) {
         val data: Intent? = result.data
         val uris = mutableListOf<Uri>()
@@ -50,11 +169,15 @@ fun handlePickerResult(result: ActivityResult): String {
             }
         }
         return if (uris.isNotEmpty()) {
-            "Success! Received ${uris.size} URI(s):\n" + uris.joinToString("\n")
+            val formattedResults = uris.map { uri -> formatUriData(context, uri, pickerType) }
+            PickerResult(statusText = "Received items: ${uris.size}", contacts = formattedResults)
         } else {
-            "Picker returned OK, but no URI was found."
+            PickerResult(
+                statusText = "Picker returned OK, but no URI was found.",
+                contacts = emptyList(),
+            )
         }
     } else {
-        return "Picker was canceled or failed."
+        return PickerResult(statusText = "Picker was canceled or failed.", contacts = emptyList())
     }
 }

@@ -36,6 +36,8 @@
     <!--Content description for the back arrow icon button in the expanded search bar. Tapping it
         closes the search field. [CHAR LIMIT=NONE] -->
     <string name="contacts_picker_top_bar_search_arrow_back_content_description">Close search</string>
+    <!--Content description for the more options icon on primary contacts list top bar [CHAR LIMIT=NONE] -->
+    <string name="contacts_picker_top_bar_more_options_content_description">More Options</string>
     <!-- The title of the "Favorites" section in the contacts list. -->
     <string name="contacts_picker_favorites_header">Favorites</string>
     <!--Content description for the "Favorites" section header icon. [CHAR LIMIT=NONE] -->
@@ -48,6 +50,9 @@
     <!--Content description for the privacy icon button in the top bar. Tapping it opens the privacy
         information banner. [CHAR LIMIT=NONE] -->
     <string name="privacy_info_content_description">Privacy information</string>
+    <!--Content description for the fast scroller's handle, which lets the user scroll quickly through a list.
+        [CHAR_LIMIT=NONE] -->
+    <string name="fast_scroller_handle_content_description">Fast scroller handle</string>
     <!-- Content description for the avatar profile picture of the contact. [CHAR LIMIT=NONE] -->
     <string name="contact_avatar_profile_picture_content_description">Contact profile picture</string>
     <!-- Content description for the avatar initial of the contact when profile picture does not
@@ -66,12 +71,41 @@
         addresses. [CHAR LIMIT=NONE] -->
     <string name="contact_item_email_icon_content_description">Email</string>
 
-    <!-- Count of emails shown in the collapsed contact item with multiple emails. [CHAR LIMIT=NONE] -->
-    <string name="contact_item_emails_count">%d emails</string>
-    <!-- Count of phone numbers shown in the collapsed contact item with multiple numbers.
+    <!-- Count of emails shown in the contact item with multiple emails when none are selected.
         [CHAR LIMIT=NONE] -->
-    <string name="contact_item_phones_count">%d phone numbers</string>
+    <string name="contact_item_emails_count">
+        {count, plural,
+        =1 {# email}
+        other {# emails}}
+    </string>
+    <!-- Count of phone numbers shown in the collapsed contact item with multiple numbers when none
+        are selected. [CHAR LIMIT=NONE] -->
+    <string name="contact_item_phones_count">
+        {count, plural,
+        =1 {# phone number}
+        other {# phone numbers}}
+    </string>
+    <!-- Count of selected emails shown in the contact item with multiple emails when one or more
+        are selected. [CHAR LIMIT=NONE] -->
+    <string name="contact_item_emails_selected_count">
+        {total_count, plural,
+        =1 {{selected_count} of # email}
+        other {{selected_count} of # emails}}
+    </string>
+    <!-- Count of selected phone numbers shown in the contact item with multiple numbers when one or
+        more are selected [CHAR LIMIT=NONE] -->
+    <string name="contact_item_phones_selected_count">
+        {total_count, plural,
+        =1 {{selected_count} of # phone number}
+        other {{selected_count} of # phone numbers}}
+    </string>
 
+    <!-- Message shown in to the user when trying to select contacts above the limit. [CHAR LIMIT=40] -->
+    <string name="contacts_selection_limit_reached_message">
+        {count, plural,
+        =1 {Can share only # contact at a time}
+        other {Can share only # contacts at a time}}
+    </string>
     <!-- Content description for the checkmark icon that replaces the avatar when a contact is
         selected. The parameter is the contact's name. [CHAR LIMIT=NONE] -->
     <string name="contact_item_selected_content_description">%1$s selected</string>
@@ -81,6 +115,9 @@
     <!-- Label for the button in the selection bar that allows the user to preview their selected
         contacts. [CHAR LIMIT=20] -->
     <string name="selection_bottom_bar_preview_button_label">Preview</string>
+    <!-- Label for the button in the selection bar that allows the user to go back from the preview
+        page. [CHAR LIMIT=20] -->
+    <string name="selection_bottom_bar_back_button_label">Back</string>
     <!-- Label for the button in the selection bar that confirms the user's selection and closes the picker.
         [CHAR LIMIT=20] -->
     <string name="selection_bottom_bar_done_button_label">Done</string>
@@ -92,6 +129,15 @@
     <!-- Text for the "Dismiss" button on the privacy banner. -->
     <string name="privacy_banner_dismiss">"Dismiss"</string>
 
+    <!-- Content description for the back button in the privacy details top bar -->
+    <string name="title_top_bar_back_button_content_description">Back</string>
+
+    <!-- Preview screen title at the top of the page. [CHAR LIMIT=20] -->
+    <string name="preview_screen_title">Preview</string>
+
     <!-- The default fallback name to use for the calling application. -->
     <string name="default_calling_app_name">This app</string>
+
+    <!-- Text for the privacy menu in the top bar of Contacts List Screen -->
+    <string name="privacy_details_menu_label">Your contacts\' privacy</string>
 </resources>

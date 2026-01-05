@@ -21,11 +21,11 @@ import android.content.flags.Flags
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
-import androidx.collection.longObjectMapOf
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Mood
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -38,6 +38,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.contactspicker.R
 import com.android.contactspicker.data.model.Contact
+import com.android.contactspicker.data.model.emptyContactsSelection
 import com.android.contactspicker.testdata.ContactTestDataFactory
 import com.android.contactspicker.ui.components.AVATAR_TEST_TAG
 import com.google.common.truth.Truth.assertThat
@@ -61,19 +62,20 @@ class ContactsPickerBodyTest {
         composeTestRule.setContent {
             ContactsPickerBody(
                 contacts = contacts,
-                selectedContacts = longObjectMapOf(),
+                selectedContacts = emptyContactsSelection(),
                 isMultiSelectEnabled = false,
                 onPrivacyBannerMoreDetails = {},
                 onPrivacyBannerDismissRequest = {},
                 onToggleContactSelection = {},
                 onToggleEntrySelection = { _, _ -> },
                 callingAppName = null,
+                showPrivacyBanner = false,
             )
         }
 
         contacts.forEach { contact ->
             val displayName = contact.displayName
-            val initial = displayName.first().toString()
+            val initial = contact.getDisplayNameInitialLetter().toString()
             composeTestRule
                 .onNode(hasTestTag(CONTACTS_LIST_SECTION_HEADER_TEST_TAG) and hasText(initial))
                 .assertIsDisplayed()
@@ -94,16 +96,35 @@ class ContactsPickerBodyTest {
         composeTestRule.setContent {
             ContactsPickerBody(
                 contacts = listOf(ContactTestDataFactory.GENERIC_DISPLAY_NAME_CONTACT),
-                selectedContacts = longObjectMapOf(),
+                selectedContacts = emptyContactsSelection(),
                 isMultiSelectEnabled = false,
                 onPrivacyBannerMoreDetails = {},
                 onPrivacyBannerDismissRequest = {},
                 onToggleContactSelection = {},
+                showPrivacyBanner = true,
                 onToggleEntrySelection = { _, _ -> },
                 callingAppName = null,
             )
         }
         composeTestRule.onNode(hasTestTag(PRIVACY_BANNER_TEST_TAG)).assertIsDisplayed()
+    }
+
+    @Test
+    fun privacyBanner_isNotDisplayed() {
+        composeTestRule.setContent {
+            ContactsPickerBody(
+                contacts = listOf(ContactTestDataFactory.GENERIC_DISPLAY_NAME_CONTACT),
+                selectedContacts = emptyContactsSelection(),
+                isMultiSelectEnabled = false,
+                onPrivacyBannerMoreDetails = {},
+                onPrivacyBannerDismissRequest = {},
+                onToggleContactSelection = {},
+                showPrivacyBanner = false,
+                onToggleEntrySelection = { _, _ -> },
+                callingAppName = null,
+            )
+        }
+        composeTestRule.onNode(hasTestTag(PRIVACY_BANNER_TEST_TAG)).assertIsNotDisplayed()
     }
 
     @Test
@@ -205,8 +226,9 @@ class ContactsPickerBodyTest {
                 contacts = contacts,
                 onPrivacyBannerMoreDetails = {},
                 onPrivacyBannerDismissRequest = {},
-                selectedContacts = longObjectMapOf(),
+                selectedContacts = emptyContactsSelection(),
                 isMultiSelectEnabled = false,
+                showPrivacyBanner = true,
                 onToggleContactSelection = {},
                 onToggleEntrySelection = { _, _ -> },
                 callingAppName = null,
