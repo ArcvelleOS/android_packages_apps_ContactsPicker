@@ -26,8 +26,7 @@
     <string name="contacts_picker_top_bar_search_icon_content_description" msgid="176636737534343950">"Tafuta"</string>
     <string name="contacts_picker_top_bar_search_clear_text_content_description" msgid="5304568529121015922">"Futa maandishi ya kutafuta"</string>
     <string name="contacts_picker_top_bar_search_arrow_back_content_description" msgid="5352118000652542537">"Funga upau wa kutafutia"</string>
-    <!-- no translation found for contacts_picker_top_bar_more_options_content_description (3631455099077689243) -->
-    <skip />
+    <string name="contacts_picker_top_bar_more_options_content_description" msgid="3631455099077689243">"Chaguo zaidi"</string>
     <string name="contacts_picker_favorites_header" msgid="8832599911501712849">"Vipendwa"</string>
     <string name="favorites_header_icon_content_description" msgid="7094941017377292492">"Aikoni ya nyota"</string>
     <string name="emoji_header_icon_content_description" msgid="2926727446702186759">"Aikoni ya tabasamu"</string>
@@ -36,6 +35,8 @@
     <string name="fast_scroller_handle_content_description" msgid="5785781874804788816">"Ncha ya kidirisha cha kukunjua kwa kasi"</string>
     <string name="contact_avatar_profile_picture_content_description" msgid="4077599609642932184">"Picha ya wasifu ya mtu unayewasiliana naye"</string>
     <string name="contact_avatar_initial_content_description" msgid="8441303818086750337">"Herufi ya kwanza ya jina la mtu unayewasiliana naye"</string>
+    <!-- no translation found for no_name_placeholder (491336212594465933) -->
+    <skip />
     <string name="contact_item_expand_button_content_description" msgid="6128012837692026993">"Panua"</string>
     <string name="contact_item_collapse_button_content_description" msgid="6742731080975214281">"Kunja"</string>
     <string name="contact_item_phone_icon_content_description" msgid="8117150273224121391">"Simu"</string>

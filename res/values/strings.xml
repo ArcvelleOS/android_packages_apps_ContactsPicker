@@ -58,6 +58,8 @@
     <!-- Content description for the avatar initial of the contact when profile picture does not
         exist. [CHAR LIMIT=NONE] -->
     <string name="contact_avatar_initial_content_description">Contact initial</string>
+    <!-- Placeholder name for contacts that do not have a display name. -->
+    <string name="no_name_placeholder">(No name)</string>
     <!-- Content description for the drop down button to expand contacts with multiple email
         addresses or phone numbers. [CHAR LIMIT=NONE] -->
     <string name="contact_item_expand_button_content_description">Expand</string>
@@ -124,8 +126,8 @@
 
     <!-- Description for the privacy banner shown at the top of the contact picker. %1$s is the app name. -->
     <string name="privacy_banner_description">"%1$s will only have access to info from the contacts you select"</string>
-    <!-- Text for the "More Details" button on the privacy banner. -->
-    <string name="privacy_banner_more_details">"More Details"</string>
+    <!-- Text for the "More details" button on the privacy banner. -->
+    <string name="privacy_banner_more_details">"More details"</string>
     <!-- Text for the "Dismiss" button on the privacy banner. -->
     <string name="privacy_banner_dismiss">"Dismiss"</string>
 
@@ -140,4 +142,9 @@
 
     <!-- Text for the privacy menu in the top bar of Contacts List Screen -->
     <string name="privacy_details_menu_label">Your contacts\' privacy</string>
+
+    <!-- Text shown when there are no contacts to display. [CHAR LIMIT=40] -->
+    <string name="no_contacts_title">No contacts yet</string>
+    <!-- Secondary text shown when there are no contacts to display. [CHAR LIMIT=100] -->
+    <string name="no_contacts_description">The contacts that you create or import to your device will appear here</string>
 </resources>

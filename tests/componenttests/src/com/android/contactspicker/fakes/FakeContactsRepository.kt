@@ -17,6 +17,7 @@ package com.android.contactspicker.fakes
 
 import com.android.contactspicker.config.ContactsQueryMode
 import com.android.contactspicker.data.model.Contact
+import com.android.contactspicker.data.model.MimeType
 import com.android.contactspicker.data.repository.ContactsRepository
 
 /** A fake implementation of ContactsRepository for use in tests. */
@@ -27,6 +28,7 @@ class FakeContactsRepository : ContactsRepository {
     private val searchResultsMap = mutableMapOf<String, List<Contact>>()
     private val searchExceptionMap = mutableMapOf<String, Exception>()
     private val searchInvocationsCountMap = mutableMapOf<String, Int>()
+    private val dataRowIdsMap = mutableMapOf<Pair<Set<Long>, Set<MimeType>>, List<Long>>()
 
     fun setInitialContacts(contacts: List<Contact>) {
         initialContacts = contacts
@@ -47,6 +49,14 @@ class FakeContactsRepository : ContactsRepository {
         searchResultsMap.remove(query)
     }
 
+    fun setDataRowIdsResult(
+        contactIds: List<Long>,
+        mimeTypes: List<MimeType>,
+        dataIds: List<Long>,
+    ) {
+        dataRowIdsMap[contactIds.toSet() to mimeTypes.toSet()] = dataIds
+    }
+
     /** Returns the number of times [searchContacts] has been invoked with the provided [query]. */
     fun searchInvocationsCountForQuery(query: String): Int {
         return searchInvocationsCountMap.getOrDefault(query, 0)
@@ -64,5 +74,12 @@ class FakeContactsRepository : ContactsRepository {
         searchInvocationsCountMap[query] = searchInvocationsCountMap.getOrDefault(query, 0) + 1
         searchExceptionMap[query]?.let { throw it }
         return searchResultsMap[query] ?: emptyList()
+    }
+
+    override suspend fun getDataRowIds(
+        contactIds: List<Long>,
+        mimeTypes: List<MimeType>,
+    ): List<Long> {
+        return dataRowIdsMap[contactIds.toSet() to mimeTypes.toSet()] ?: emptyList()
     }
 }
