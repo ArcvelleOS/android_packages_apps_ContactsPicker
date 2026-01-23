@@ -19,7 +19,6 @@ package com.android.contactspicker
 import android.app.Activity
 import android.app.ApplicationPackageManager
 import android.app.Instrumentation
-import android.content.ClipData
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -49,7 +48,7 @@ import androidx.test.espresso.intent.matcher.IntentMatchers.hasComponent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.contactspicker.Flags.FLAG_ENABLE_ACTION_PICK_TAKEOVER_IN_DROIDFOOD
-import com.android.contactspicker.data.model.DisplayNameContact
+import com.android.contactspicker.testdata.IntegrationTestContactData
 import com.android.contactspicker.data.model.contactsSelectionOf
 import com.android.contactspicker.data.model.emptyContactsSelection
 import com.android.contactspicker.inject.ActivityModule
@@ -58,12 +57,14 @@ import com.android.contactspicker.provider.CallingPackageProvider
 import com.android.contactspicker.room.dao.PrivacyBannerShownDao
 import com.android.contactspicker.ui.components.BOTTOM_SHEET_TEST_TAG
 import com.android.contactspicker.viewmodel.ContactsViewModel
+import com.android.contactspicker.viewmodel.PickerResultEvent
 import com.google.common.truth.Truth.assertThat
 import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.UninstallModules
 import kotlin.test.Ignore
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
@@ -77,6 +78,7 @@ import org.mockito.ArgumentMatchers.anyInt
 import org.mockito.ArgumentMatchers.anyString
 import org.mockito.kotlin.any
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doNothing
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
@@ -101,19 +103,13 @@ class ContactsPickerActivityTest {
 
     @BindValue val mockViewModel: ContactsViewModel = mock()
     @BindValue val mockPrivacyBannerShownDao: PrivacyBannerShownDao = mock()
+    private val mockEventsFlow = MutableSharedFlow<PickerResultEvent>(replay = 1)
 
     private lateinit var testPackageName: String
 
     private val testUri = Uri.parse("content://contacts/1")
     private val testUri2 = Uri.parse("content://data/10")
-    private val testContact =
-        DisplayNameContact(
-            id = 1,
-            displayName = "Test",
-            isFavorite = false,
-            profilePictureUri = null,
-            lookupKey = "test_lookup",
-        )
+    private val testContact = IntegrationTestContactData.GENERIC_DISPLAY_NAME_CONTACT
 
     @Before
     fun setUp() {
@@ -153,6 +149,8 @@ class ContactsPickerActivityTest {
         doNothing()
             .whenever(mockViewModel)
             .processIntent(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyInt())
+        doNothing().whenever(mockViewModel).onDoneClicked()
+        whenever(mockViewModel.pickerResultEvents).thenReturn(mockEventsFlow)
     }
 
     @After
@@ -271,13 +269,19 @@ class ContactsPickerActivityTest {
                 )
             )
         whenever(mockViewModel.uiState).thenReturn(successStateSingleSelect)
-        whenever(mockViewModel.prepareSelectionResult())
-            .thenReturn(
-                Intent().apply {
-                    data = testUri
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                }
-            )
+        doAnswer {
+                mockEventsFlow.tryEmit(
+                    PickerResultEvent.SetResultAndFinish(
+                        Intent().apply {
+                            data = testUri
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                        }
+                    )
+                )
+                null
+            }
+            .`when`(mockViewModel)
+            .onDoneClicked()
 
         val scenario = ActivityScenario.launchActivityForResult<ContactsPickerActivity>(baseIntent)
 
@@ -317,24 +321,24 @@ class ContactsPickerActivityTest {
                 )
             )
         whenever(mockViewModel.uiState).thenReturn(successStateMultiSelect)
-        // Set up ViewModel to return intent with multiple URIs
-        whenever(mockViewModel.prepareSelectionResult())
-            .thenReturn(
-                Intent().apply {
-                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                    clipData =
-                        ClipData.newUri(context.contentResolver, "uri", testUri).apply {
-                            addItem(ClipData.Item(testUri2))
+        doAnswer {
+                mockEventsFlow.tryEmit(
+                    PickerResultEvent.SetResultAndFinish(
+                        Intent().apply {
+                            data = testUri
+                            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
-                }
-            )
+                    )
+                )
+                null
+            }
+            .`when`(mockViewModel)
+            .onDoneClicked()
 
         val scenario = ActivityScenario.launchActivityForResult<ContactsPickerActivity>(baseIntent)
 
-        // ACT
         composeTestRule.onNodeWithText("Done").performClick()
 
-        // ASSERT
         val result = scenario.result
         assertThat(result.resultCode).isEqualTo(Activity.RESULT_OK)
 
@@ -369,7 +373,12 @@ class ContactsPickerActivityTest {
                 )
             )
         whenever(mockViewModel.uiState).thenReturn(successStateSingleSelect)
-        whenever(mockViewModel.prepareSelectionResult()).thenReturn(null)
+        doAnswer {
+                mockEventsFlow.tryEmit(PickerResultEvent.CancelAndFinish)
+                null
+            }
+            .`when`(mockViewModel)
+            .onDoneClicked()
 
         val scenario = ActivityScenario.launchActivityForResult<ContactsPickerActivity>(baseIntent)
 
@@ -461,7 +470,7 @@ class ContactsPickerActivityTest {
         val successState =
             MutableStateFlow(
                 ContactsListState.Success(
-                    availableContacts = emptyList(),
+                    availableContacts = listOf(testContact),
                     selectedContacts = emptyContactsSelection(),
                     isMultiSelectEnabled = false,
                     callingAppName = testAppName,
@@ -493,7 +502,7 @@ class ContactsPickerActivityTest {
         val successState =
             MutableStateFlow(
                 ContactsListState.Success(
-                    availableContacts = emptyList(),
+                    availableContacts = listOf(testContact),
                     selectedContacts = emptyContactsSelection(),
                     isMultiSelectEnabled = false,
                     callingAppName = testAppName,
