@@ -23,6 +23,7 @@
     <string name="contacts_picker_chooser_activity_title" msgid="2187765291094588596">"Kontaktivalitsin"</string>
     <string name="contacts_picker_chooser_activity_no_app_can_handle_action" msgid="5179706900892295633">"Yksikään sovellus ei voi käsitellä tätä toimintoa."</string>
     <string name="contacts_picker_top_bar_search_placeholder_hint" msgid="327380354282823462">"Haku"</string>
+    <string name="contacts_picker_search_expanded_hint" msgid="5748895040745140240">"Hae yhteystiedoistasi"</string>
     <string name="contacts_picker_top_bar_search_icon_content_description" msgid="176636737534343950">"Haku"</string>
     <string name="contacts_picker_top_bar_search_clear_text_content_description" msgid="5304568529121015922">"Tyhjennä hakuteksti"</string>
     <string name="contacts_picker_top_bar_search_arrow_back_content_description" msgid="5352118000652542537">"Sulje haku"</string>
@@ -32,11 +33,10 @@
     <string name="emoji_header_icon_content_description" msgid="2926727446702186759">"Hymykuvake"</string>
     <string name="profile_switcher_content_description" msgid="4180951376809274279">"Vaihda profiilia"</string>
     <string name="privacy_info_content_description" msgid="1633879608858355544">"Yksityisyystiedot"</string>
-    <string name="fast_scroller_handle_content_description" msgid="5785781874804788816">"Nopean vierityksen kahva"</string>
+    <string name="scrubber_handle_content_description" msgid="1435669253806161568">"Nopean vierityksen kahva"</string>
     <string name="contact_avatar_profile_picture_content_description" msgid="4077599609642932184">"Kontaktin profiilikuva"</string>
     <string name="contact_avatar_initial_content_description" msgid="8441303818086750337">"Kontaktin nimikirjain"</string>
-    <!-- no translation found for no_name_placeholder (491336212594465933) -->
-    <skip />
+    <string name="no_name_placeholder" msgid="491336212594465933">"(Ei nimeä)"</string>
     <string name="contact_item_expand_button_content_description" msgid="6128012837692026993">"Laajenna"</string>
     <string name="contact_item_collapse_button_content_description" msgid="6742731080975214281">"Tiivistä"</string>
     <string name="contact_item_phone_icon_content_description" msgid="8117150273224121391">"Puhelinnumero"</string>
@@ -52,10 +52,18 @@
     <string name="selection_bottom_bar_back_button_label" msgid="6447375742968584743">"Takaisin"</string>
     <string name="selection_bottom_bar_done_button_label" msgid="6954303718344998674">"Valmis"</string>
     <string name="privacy_banner_description" msgid="8397685763338639247">"%1$s saa pääsyn vain valitsemiesi kontaktien tietoihin"</string>
-    <string name="privacy_banner_more_details" msgid="1028945565826552764">"Lisätietoja"</string>
+    <string name="privacy_banner_more_details" msgid="2567058099706516908">"Lisätietoa"</string>
     <string name="privacy_banner_dismiss" msgid="3453400533805574139">"Hylkää"</string>
     <string name="title_top_bar_back_button_content_description" msgid="7162880372713819715">"Takaisin"</string>
     <string name="preview_screen_title" msgid="2852036336424026274">"Esikatselu"</string>
     <string name="default_calling_app_name" msgid="5345125341557406609">"Tämä sovellus"</string>
     <string name="privacy_details_menu_label" msgid="497348969731766203">"Kontaktien yksityisyys"</string>
+    <string name="no_contacts_title" msgid="9093698629001614808">"Yhteystietoja ei vielä ole"</string>
+    <string name="no_contacts_description" msgid="2146615362021064099">"Laitteelle luomasi tai tuomasi yhteystiedot näkyvät täällä"</string>
+    <string name="user_type_personal" msgid="45376141973820399">"Henkilökohtainen"</string>
+    <string name="user_type_unknown" msgid="8943747357005052121">"Käyttäjä %1$d"</string>
+    <string name="picker_profile_paused_title" msgid="4083321530415544679">"%s sovellusta on keskeytetty"</string>
+    <string name="picker_profile_paused_msg" msgid="2824051504891136577">"Avaa %1$s yhteystiedot laittamalla %2$s ‑sovellukset päälle ja yritä uudelleen"</string>
+    <string name="picker_profile_admin_title" msgid="143963419213132290">"Järjestelmänvalvojan estämä"</string>
+    <string name="picker_profile_admin_msg" msgid="3568803258401767467">"Pääsy %1$s dataan sovelluksella %2$s ei ole sallittu."</string>
 </resources>

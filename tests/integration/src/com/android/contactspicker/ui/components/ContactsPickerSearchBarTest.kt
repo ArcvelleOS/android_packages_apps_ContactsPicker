@@ -17,10 +17,12 @@
 package com.android.contactspicker.ui.components
 
 import android.app.ApplicationPackageManager
+import android.app.admin.DevicePolicyManager
 import android.content.Context
 import android.content.Intent
 import android.content.flags.Flags
 import android.content.pm.ApplicationInfo
+import android.os.UserManager
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
@@ -35,6 +37,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.contactspicker.ContactsPickerActivity
 import com.android.contactspicker.R
+import com.android.contactspicker.data.repository.utils.UserProfileManagerFactory
 import com.android.contactspicker.inject.ActivityModule
 import com.android.contactspicker.inject.AppModule
 import com.android.contactspicker.provider.CallingPackageProvider
@@ -66,6 +69,9 @@ class ContactsPickerSearchBarTest {
     private lateinit var scenario: ActivityScenario<ContactsPickerActivity>
 
     @BindValue @JvmField val mockPackageManager: ApplicationPackageManager = mock()
+    @BindValue val mockUserManager: UserManager = mock()
+    @BindValue val mockDevicePolicyManager: DevicePolicyManager = mock()
+    @BindValue val mockUserProfileManagerFactory: UserProfileManagerFactory = mock()
 
     @BindValue @JvmField val mockCallingPackageProvider: CallingPackageProvider = mock()
     @BindValue val mockPrivacyBannerShownDao: PrivacyBannerShownDao = mock()
@@ -82,6 +88,7 @@ class ContactsPickerSearchBarTest {
         val clientAppPackageName = context.packageName
         val appInfo = ApplicationInfo().apply { targetSdkVersion = 37 }
         whenever(mockPackageManager.getApplicationInfo(clientAppPackageName, 0)).doReturn(appInfo)
+        whenever(mockPackageManager.getApplicationLabel(appInfo)).doReturn("Test App")
         whenever(mockCallingPackageProvider.get()).doReturn(clientAppPackageName)
         val intent =
             Intent(context, ContactsPickerActivity::class.java).apply {
@@ -115,12 +122,17 @@ class ContactsPickerSearchBarTest {
     fun whenSearchBoxTapped_searchBoxIsExpanded() {
         val placeholderText =
             context.getString(R.string.contacts_picker_top_bar_search_placeholder_hint)
+        val expandedPlaceholderText =
+            context.getString(R.string.contacts_picker_search_expanded_hint)
         val clearTextContentDescription =
             context.getString(
                 R.string.contacts_picker_top_bar_search_clear_text_content_description
             )
 
         composeTestRule.onNodeWithText(placeholderText).performClick()
+
+        val testQuery = "Test Query"
+        composeTestRule.onNodeWithText(expandedPlaceholderText).performTextInput(testQuery)
 
         composeTestRule.onNodeWithContentDescription(clearTextContentDescription).assertExists()
     }
@@ -129,10 +141,12 @@ class ContactsPickerSearchBarTest {
     fun whenInputEntered_queryIsDisplayed() {
         val placeholderText =
             context.getString(R.string.contacts_picker_top_bar_search_placeholder_hint)
+        val expandedPlaceholderText =
+            context.getString(R.string.contacts_picker_search_expanded_hint)
         composeTestRule.onNodeWithText(placeholderText).performClick()
 
         val testQuery = "Test Query"
-        composeTestRule.onNodeWithText(placeholderText).performTextInput(testQuery)
+        composeTestRule.onNodeWithText(expandedPlaceholderText).performTextInput(testQuery)
 
         composeTestRule.onNodeWithText(testQuery).assertExists()
     }
@@ -141,18 +155,40 @@ class ContactsPickerSearchBarTest {
     fun whenClearButtonIsTapped_queryIsCleared() {
         val placeholderText =
             context.getString(R.string.contacts_picker_top_bar_search_placeholder_hint)
+        val expandedPlaceholderText =
+            context.getString(R.string.contacts_picker_search_expanded_hint)
         val clearTextContentDescription =
             context.getString(
                 R.string.contacts_picker_top_bar_search_clear_text_content_description
             )
         composeTestRule.onNodeWithText(placeholderText).performClick()
         val testQuery = "Test Query"
-        composeTestRule.onNodeWithText(placeholderText).performTextInput(testQuery)
+        composeTestRule.onNodeWithText(expandedPlaceholderText).performTextInput(testQuery)
         composeTestRule.onNodeWithText(testQuery).assertExists()
 
         composeTestRule.onNodeWithContentDescription(clearTextContentDescription).performClick()
 
         composeTestRule.onNodeWithText(testQuery).assertDoesNotExist()
-        composeTestRule.onNodeWithText(placeholderText).assertExists()
+        composeTestRule.onNodeWithText(expandedPlaceholderText).assertExists()
+    }
+
+    @Test
+    fun whenSearchBoxExpanded_queryEmpty_clearButtonDoesNotExist() {
+        val placeholderText =
+            context.getString(R.string.contacts_picker_top_bar_search_placeholder_hint)
+        val clearTextContentDescription =
+            context.getString(
+                R.string.contacts_picker_top_bar_search_clear_text_content_description
+            )
+        composeTestRule.onNodeWithText(placeholderText).performClick()
+
+        composeTestRule
+            .onNodeWithContentDescription(clearTextContentDescription)
+            .assertDoesNotExist()
+
+        val expandedPlaceholderText =
+            context.getString(R.string.contacts_picker_search_expanded_hint)
+        composeTestRule.onNodeWithText(expandedPlaceholderText).performTextInput("A")
+        composeTestRule.onNodeWithContentDescription(clearTextContentDescription).assertExists()
     }
 }

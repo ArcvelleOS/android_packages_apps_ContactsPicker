@@ -48,13 +48,13 @@ import androidx.test.espresso.intent.matcher.IntentMatchers.hasComponent
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.android.contactspicker.Flags.FLAG_ENABLE_ACTION_PICK_TAKEOVER_IN_DROIDFOOD
-import com.android.contactspicker.testdata.IntegrationTestContactData
 import com.android.contactspicker.data.model.contactsSelectionOf
 import com.android.contactspicker.data.model.emptyContactsSelection
 import com.android.contactspicker.inject.ActivityModule
 import com.android.contactspicker.inject.AppModule
 import com.android.contactspicker.provider.CallingPackageProvider
 import com.android.contactspicker.room.dao.PrivacyBannerShownDao
+import com.android.contactspicker.testdata.IntegrationTestContactData
 import com.android.contactspicker.ui.components.BOTTOM_SHEET_TEST_TAG
 import com.android.contactspicker.viewmodel.ContactsViewModel
 import com.android.contactspicker.viewmodel.PickerResultEvent
@@ -127,6 +127,7 @@ class ContactsPickerActivityTest {
         )
         val appInfo = ApplicationInfo().apply { targetSdkVersion = 37 }
         whenever(mockPackageManager.getApplicationInfo(testPackageName, 0)).doReturn(appInfo)
+        whenever(mockPackageManager.getApplicationLabel(any())).doReturn("Test App")
         whenever(mockCallingPackageProvider.get()).doReturn(testPackageName)
         baseIntent =
             Intent(context, ContactsPickerActivity::class.java).apply {
@@ -145,10 +146,18 @@ class ContactsPickerActivityTest {
                 )
             )
         whenever(mockViewModel.uiState).thenReturn(successState)
+        whenever(mockViewModel.userStates).thenReturn(MutableStateFlow(null))
         whenever(mockViewModel.snackbarEvents).thenReturn(emptyFlow())
         doNothing()
             .whenever(mockViewModel)
-            .processIntent(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyInt())
+            .processIntent(
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyInt(),
+            )
         doNothing().whenever(mockViewModel).onDoneClicked()
         whenever(mockViewModel.pickerResultEvents).thenReturn(mockEventsFlow)
     }
@@ -529,5 +538,26 @@ class ContactsPickerActivityTest {
         composeTestRule
             .onNodeWithText(context.getString(R.string.privacy_details_description, testAppName))
             .assertIsDisplayed()
+    }
+
+    @Test
+    @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
+    fun processIntent_throwsIllegalArgumentException_finishesWithResultCanceled() {
+        whenever(
+                mockViewModel.processIntent(
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyOrNull(),
+                    anyInt(),
+                )
+            )
+            .thenThrow(IllegalArgumentException("Missing requested fields"))
+
+        val scenario = ActivityScenario.launchActivityForResult<ContactsPickerActivity>(baseIntent)
+
+        assertThat(scenario.state).isEqualTo(Lifecycle.State.DESTROYED)
+        assertThat(scenario.result.resultCode).isEqualTo(Activity.RESULT_CANCELED)
     }
 }

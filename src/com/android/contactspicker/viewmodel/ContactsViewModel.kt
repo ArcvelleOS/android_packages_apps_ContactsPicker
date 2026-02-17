@@ -16,10 +16,13 @@
 package com.android.contactspicker.viewmodel
 
 import android.content.ClipData
+import android.content.ContentProvider
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Trace
+import android.os.UserHandle
 import android.util.Log
 import androidx.annotation.OpenForTesting
 import androidx.lifecycle.ViewModel
@@ -27,17 +30,24 @@ import androidx.lifecycle.viewModelScope
 import com.android.contactspicker.ContactsListState
 import com.android.contactspicker.ContactsPreviewState
 import com.android.contactspicker.ContactsUiState
+import com.android.contactspicker.R
 import com.android.contactspicker.SearchState
 import com.android.contactspicker.config.ContactsPickerAction
 import com.android.contactspicker.config.ContactsPickerRequestConfig
 import com.android.contactspicker.config.ContactsQueryMode
 import com.android.contactspicker.data.model.Contact
 import com.android.contactspicker.data.model.EmailContact
+import com.android.contactspicker.data.model.PausedReason
 import com.android.contactspicker.data.model.PhoneContact
+import com.android.contactspicker.data.model.PickerUserStates
+import com.android.contactspicker.data.model.ProfileBlockedDialogData
+import com.android.contactspicker.data.model.UserProfile
 import com.android.contactspicker.data.model.emptyContactsSelection
 import com.android.contactspicker.data.repository.ContactsPickerSessionProviderRepository
 import com.android.contactspicker.data.repository.ContactsRepository
 import com.android.contactspicker.data.repository.PrivacyBannerRepository
+import com.android.contactspicker.data.repository.UserRepository
+import dagger.Lazy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -50,6 +60,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -87,10 +99,11 @@ sealed interface PickerResultEvent {
 open class ContactsViewModel
 @Inject
 constructor(
-    @ApplicationContext context: Context,
+    @param:ApplicationContext private val context: Context,
     private val contactsRepository: ContactsRepository,
     private val contactsPickerSessionProviderRepository: ContactsPickerSessionProviderRepository,
     private val privacyBannerRepository: PrivacyBannerRepository,
+    private val userRepository: Lazy<UserRepository>,
     private val selectionHandlerFactory: ContactsSelectionHandler.Factory,
 ) : ViewModel() {
 
@@ -98,6 +111,9 @@ constructor(
 
     private val _uiState = MutableStateFlow<ContactsUiState>(ContactsListState.Loading)
     open val uiState: StateFlow<ContactsUiState> = _uiState.asStateFlow()
+
+    private val _userStates = MutableStateFlow<PickerUserStates?>(null)
+    open val userStates: StateFlow<PickerUserStates?> = _userStates.asStateFlow()
 
     private val _snackbarEvents = MutableSharedFlow<SnackbarEvent>()
     open val snackbarEvents: Flow<SnackbarEvent> = _snackbarEvents.asSharedFlow()
@@ -107,13 +123,17 @@ constructor(
 
     private var selectionHandler: ContactsSelectionHandler? = null
     private var selectionCollectorJob: Job? = null
+    private var userStatesCollectorJob: Job? = null
 
     private var initialContacts: List<Contact> = emptyList()
     private var callingAppName: String? = null
+    private var callingPackageName: String? = null
     private var searchJob: Job? = null
     private var loadContactsJob: Job? = null
     private var cachedStateBeforePreview: ContactsUiState? = null
     private var callingAppUid: Int = -1
+    private val callingUserId: Int
+        get() = UserHandle.getUserId(callingAppUid)
 
     private var pickerConfig: ContactsPickerRequestConfig? = null
 
@@ -148,9 +168,11 @@ constructor(
         intentType: String?,
         intentExtras: Bundle?,
         callingAppName: String?,
+        callingPackageName: String?,
         callingAppUid: Int,
     ) {
         this.callingAppName = callingAppName
+        this.callingPackageName = callingPackageName
         this.callingAppUid = callingAppUid
 
         val config =
@@ -158,13 +180,29 @@ constructor(
                 pickerConfig = it
             }
 
+        // TODO(b/479454402): Refactor isUserSwitchingEnabled into ContactsPickerRequestConfig
+        // to decouple from ACTION_PICK_CONTACTS
+        val isUserSwitchingEnabled =
+            config.pickerAction == ContactsPickerAction.ACTION_PICK_CONTACTS
+        if (isUserSwitchingEnabled) {
+            viewModelScope.launch { userRepository.get().clearSelectedUser() }
+            startObservingUserStates(config)
+        } else {
+            val defaultStates =
+                PickerUserStates(
+                    userIdToAvailableUsersMap = emptyMap(),
+                    selectedUserId = UserHandle.myUserId(),
+                )
+            _userStates.value = defaultStates
+            loadContactsListData(config, defaultStates)
+        }
+
         selectionHandler =
             selectionHandlerFactory.create(config.isMultiSelectEnabled, config.maxSelectionLimit) {
                 event ->
                 viewModelScope.launch { _snackbarEvents.emit(event) }
             }
         startObservingSelection()
-        loadContactsListData(config)
     }
 
     private fun startObservingSelection() {
@@ -198,14 +236,48 @@ constructor(
             }
     }
 
-    private fun loadContactsListData(config: ContactsPickerRequestConfig) {
+    private fun startObservingUserStates(config: ContactsPickerRequestConfig) {
+        userStatesCollectorJob?.cancel()
+        userStatesCollectorJob =
+            viewModelScope.launch {
+                userRepository
+                    .get()
+                    .getUserStates(callingPackageName, UserHandle.getUserId(callingAppUid))
+                    .collect { userStates ->
+                        val lastSelectedUserId = _userStates.value?.selectedUserId
+                        val currentSelectedUserId = userStates.selectedUserId
+
+                        _userStates.value = userStates
+
+                        if (lastSelectedUserId == currentSelectedUserId) {
+                            return@collect
+                        }
+
+                        // User switched. Clear selection (if not initial load) and reload.
+                        if (lastSelectedUserId != null) {
+                            clearSelection()
+                        }
+                        loadContactsListData(config, userStates)
+                    }
+            }
+    }
+
+    private fun loadContactsListData(
+        config: ContactsPickerRequestConfig,
+        userStates: PickerUserStates,
+    ) {
         loadContactsJob?.cancel()
         loadContactsJob =
             viewModelScope.launch {
                 _uiState.value = ContactsListState.Loading
                 try {
+                    Trace.beginSection("$TAG#loadContactsListData")
                     // load contacts data
-                    initialContacts = contactsRepository.getContacts(config.queryMode)
+                    Trace.beginSection("$TAG#contactsRepository.getContacts")
+                    initialContacts =
+                        contactsRepository.getContacts(config.queryMode, userStates.selectedUserId)
+                    Trace.endSection()
+
                     // Only show the privacy banner if user hasn't seen it before for this
                     // combination of uid and MIME types.
                     showPrivacyBanner =
@@ -234,6 +306,8 @@ constructor(
                     Log.e(TAG, "An unexpected error occurred during load.", e)
                     _uiState.value =
                         ContactsListState.Error(e.message ?: "An unexpected error occurred.")
+                } finally {
+                    Trace.endSection()
                 }
             }
     }
@@ -280,10 +354,23 @@ constructor(
                         createActionPickResult(finalUris, config.isMultiSelectEnabled)
                     }
                     ContactsPickerAction.ACTION_PICK_CONTACTS -> {
-                        // TODO(b/37307800): consider setting _uiState.update {
-                        // it.copy(isLoading = true) }
-                        val selectedIds = handler.getSelectedIds()
-                        createActionPickContactsResult(selectedIds, config.queryMode)
+                        try {
+                            Trace.beginSection("$TAG#finishingPickerSession")
+                            // TODO(b/37307800): consider setting _uiState.update {
+                            // it.copy(isLoading = true) }
+                            val selectedIds = handler.getSelectedIds()
+
+                            val userId = _userStates.value?.selectedUserId ?: callingUserId
+                            val intent =
+                                createActionPickContactsResult(
+                                    selectedIds,
+                                    config.queryMode,
+                                    userId,
+                                )
+                            intent
+                        } finally {
+                            Trace.endSection()
+                        }
                     }
                 }
 
@@ -300,15 +387,17 @@ constructor(
             return null
         }
 
+        val resultUris = uris.map { ContentProvider.maybeAddUserId(it, callingUserId) }
+
         return Intent().apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             if (isMultiSelectEnabled) {
                 clipData =
-                    ClipData.newUri(contentResolver, "uri", uris.first()).apply {
-                        uris.drop(1).forEach { addItem(ClipData.Item(it)) }
+                    ClipData.newUri(contentResolver, "uri", resultUris.first()).apply {
+                        resultUris.drop(1).forEach { addItem(ClipData.Item(it)) }
                     }
             } else {
-                data = uris.first()
+                data = resultUris.first()
             }
         }
     }
@@ -316,6 +405,7 @@ constructor(
     private suspend fun createActionPickContactsResult(
         ids: List<Long>,
         queryMode: ContactsQueryMode,
+        userId: Int,
     ): Intent? {
         if (ids.isEmpty()) {
             return null
@@ -323,10 +413,10 @@ constructor(
 
         return when (queryMode) {
             is ContactsQueryMode.EmailsOnly,
-            is ContactsQueryMode.PhonesOnly -> getActionPickContactsIntent(ids)
+            is ContactsQueryMode.PhonesOnly -> getActionPickContactsIntent(ids, userId)
             is ContactsQueryMode.Custom -> {
-                val ids = contactsRepository.getDataRowIds(ids, queryMode.mimetypes)
-                getActionPickContactsIntent(ids)
+                val ids = contactsRepository.getDataRowIds(ids, queryMode.mimetypes, userId)
+                getActionPickContactsIntent(ids, userId)
             }
 
             is ContactsQueryMode.DisplayNamesOnly ->
@@ -334,10 +424,127 @@ constructor(
         }
     }
 
-    private suspend fun getActionPickContactsIntent(dataIds: List<Long>): Intent {
+    private suspend fun getActionPickContactsIntent(dataIds: List<Long>, userId: Int): Intent {
         return Intent().apply {
-            data = contactsPickerSessionProviderRepository.createSession(dataIds, callingAppUid)
+            data =
+                contactsPickerSessionProviderRepository.createSession(
+                    dataIds,
+                    callingAppUid,
+                    userId,
+                )
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    }
+
+    /**
+     * Handles profile selection.
+     *
+     * @param userId The ID of the selected user profile.
+     */
+    fun onProfileSelected(userId: Int) {
+        val userStates = _userStates.value ?: return
+        if (userId == userStates.selectedUserId) return
+
+        viewModelScope.launch { userRepository.get().setSelectedUser(userId) }
+    }
+
+    /**
+     * Handles clicks on a profile in the profile switcher.
+     *
+     * @param userProfile The clicked user profile.
+     */
+    fun onProfileClicked(userProfile: UserProfile) {
+        if (userProfile.pausedInfo != null) {
+            showProfilePausedDialog(userProfile)
+            return
+        }
+
+        if (userProfile.switchableInfo != null) {
+            onProfileSelected(userProfile.userId)
+        }
+    }
+
+    private fun showProfilePausedDialog(userProfile: UserProfile, reason: PausedReason? = null) {
+        _userStates.update { currentStates ->
+            if (currentStates != null) {
+                PickerUserStates(
+                    userIdToAvailableUsersMap = currentStates.userIdToAvailableUsersMap,
+                    selectedUserId = currentStates.selectedUserId,
+                    profileBlockedDialogData =
+                        createProfilePausedDialogData(userProfile, currentStates, reason),
+                )
+            } else {
+                null
+            }
+        }
+    }
+
+    // TODO(b/479461249): Refactor profile visibility logic to use explicit quiet mode properties
+    private fun createProfilePausedDialogData(
+        userProfile: UserProfile,
+        userStates: PickerUserStates,
+        reason: PausedReason? = null,
+    ): ProfileBlockedDialogData {
+        val targetUserLabel = userProfile.switchableInfo?.label ?: ""
+        val currentUser = userStates.userIdToAvailableUsersMap[userStates.selectedUserId]
+        val currentUserLabel = currentUser?.switchableInfo?.label ?: ""
+
+        val actualReason = reason ?: userProfile.pausedInfo?.pausedReason ?: PausedReason.UNDEFINED
+
+        return when (actualReason) {
+            PausedReason.MANAGED_PROFILE_CONTACTS_BLOCKED ->
+                ProfileBlockedDialogData(
+                    title = context.getString(R.string.picker_profile_admin_title),
+                    message =
+                        context.getString(
+                            R.string.picker_profile_admin_msg,
+                            targetUserLabel,
+                            currentUserLabel,
+                        ),
+                )
+            PausedReason.QUIET_MODE ->
+                ProfileBlockedDialogData(
+                    title =
+                        context.getString(R.string.picker_profile_paused_title, targetUserLabel),
+                    message =
+                        context.getString(
+                            R.string.picker_profile_paused_msg,
+                            targetUserLabel,
+                            targetUserLabel,
+                        ),
+                )
+            PausedReason.UNDEFINED ->
+                // Fallback to generic paused message
+                ProfileBlockedDialogData(
+                    title =
+                        context.getString(R.string.picker_profile_paused_title, targetUserLabel),
+                    message =
+                        context.getString(
+                            R.string.picker_profile_paused_msg,
+                            targetUserLabel,
+                            targetUserLabel,
+                        ),
+                )
+        }
+    }
+
+    /**
+     * Dismisses the profile blocked dialog.
+     *
+     * This simply hides the dialog overlay. The user remains on the currently selected profile
+     * (even if it is paused/blocked).
+     */
+    fun dismissProfileBlockedDialog() {
+        _userStates.update { currentStates ->
+            if (currentStates != null) {
+                PickerUserStates(
+                    userIdToAvailableUsersMap = currentStates.userIdToAvailableUsersMap,
+                    selectedUserId = currentStates.selectedUserId,
+                    profileBlockedDialogData = null,
+                )
+            } else {
+                null
+            }
         }
     }
 
@@ -373,7 +580,12 @@ constructor(
     private suspend fun performSearch(query: String) {
         val config = checkNotNull(pickerConfig)
         try {
-            val results = contactsRepository.searchContacts(query, config.queryMode)
+            Trace.beginSection("$TAG#searchingContacts")
+
+            val userStates = _userStates.filterNotNull().first()
+            val selectedUserId = userStates.selectedUserId
+
+            val results = contactsRepository.searchContacts(query, config.queryMode, selectedUserId)
             _uiState.update { currentState ->
                 val selectedContacts =
                     when (currentState) {
@@ -396,6 +608,8 @@ constructor(
             }
             Log.e(TAG, "An unexpected error occurred during search.", e)
             _uiState.value = SearchState.Error("An unexpected error occurred during search.")
+        } finally {
+            Trace.endSection()
         }
     }
 
@@ -488,7 +702,8 @@ constructor(
     // TODO(b/12345678): remove once the permission is pregranted
     open fun onContactsPermissionGranted() {
         val config = pickerConfig ?: return
-        loadContactsListData(config)
+        val userStates = _userStates.value ?: return
+        loadContactsListData(config, userStates)
     }
 }
 
@@ -518,7 +733,6 @@ private fun SearchState.Success.getAggregatedContacts(queryMode: ContactsQueryMo
                         .copy(phones = contacts.flatMap { it.phones }.distinctBy { it.id })
                 }
         }
-        ContactsQueryMode.DisplayNamesOnly -> searchResults
-        // TODO(b/452020367): handle action pick contacts
-        is ContactsQueryMode.Custom -> throw IllegalArgumentException("Not yet supported")
+        ContactsQueryMode.DisplayNamesOnly,
+        is ContactsQueryMode.Custom -> searchResults
     }

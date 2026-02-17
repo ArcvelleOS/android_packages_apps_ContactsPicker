@@ -23,6 +23,7 @@
     <string name="contacts_picker_chooser_activity_title" msgid="2187765291094588596">"Инструмент за избор на контакти"</string>
     <string name="contacts_picker_chooser_activity_no_app_can_handle_action" msgid="5179706900892295633">"Няма приложение, което може да обработи това действие."</string>
     <string name="contacts_picker_top_bar_search_placeholder_hint" msgid="327380354282823462">"Търсете"</string>
+    <string name="contacts_picker_search_expanded_hint" msgid="5748895040745140240">"Търсете в контактите си"</string>
     <string name="contacts_picker_top_bar_search_icon_content_description" msgid="176636737534343950">"Търсене"</string>
     <string name="contacts_picker_top_bar_search_clear_text_content_description" msgid="5304568529121015922">"Изчистване на търсения текст"</string>
     <string name="contacts_picker_top_bar_search_arrow_back_content_description" msgid="5352118000652542537">"Затваряне на търсенето"</string>
@@ -32,11 +33,10 @@
     <string name="emoji_header_icon_content_description" msgid="2926727446702186759">"Икона на усмивка"</string>
     <string name="profile_switcher_content_description" msgid="4180951376809274279">"Превключване на потребителския профил"</string>
     <string name="privacy_info_content_description" msgid="1633879608858355544">"Информация за поверителността"</string>
-    <string name="fast_scroller_handle_content_description" msgid="5785781874804788816">"Манипулатор за бързо превъртане"</string>
+    <string name="scrubber_handle_content_description" msgid="1435669253806161568">"Манипулатор за бързо превъртане"</string>
     <string name="contact_avatar_profile_picture_content_description" msgid="4077599609642932184">"Снимка на потребителския профил на контакта"</string>
     <string name="contact_avatar_initial_content_description" msgid="8441303818086750337">"Инициал на контакта"</string>
-    <!-- no translation found for no_name_placeholder (491336212594465933) -->
-    <skip />
+    <string name="no_name_placeholder" msgid="491336212594465933">"(Няма име)"</string>
     <string name="contact_item_expand_button_content_description" msgid="6128012837692026993">"Разгъване"</string>
     <string name="contact_item_collapse_button_content_description" msgid="6742731080975214281">"Свиване"</string>
     <string name="contact_item_phone_icon_content_description" msgid="8117150273224121391">"Телефон"</string>
@@ -52,10 +52,18 @@
     <string name="selection_bottom_bar_back_button_label" msgid="6447375742968584743">"Назад"</string>
     <string name="selection_bottom_bar_done_button_label" msgid="6954303718344998674">"Готово"</string>
     <string name="privacy_banner_description" msgid="8397685763338639247">"%1$s ще има достъп само до информацията от избраните от вас контакти"</string>
-    <string name="privacy_banner_more_details" msgid="1028945565826552764">"Още подробности"</string>
+    <string name="privacy_banner_more_details" msgid="2567058099706516908">"Още подробности"</string>
     <string name="privacy_banner_dismiss" msgid="3453400533805574139">"Отхвърляне"</string>
     <string name="title_top_bar_back_button_content_description" msgid="7162880372713819715">"Назад"</string>
     <string name="preview_screen_title" msgid="2852036336424026274">"Визуализация"</string>
     <string name="default_calling_app_name" msgid="5345125341557406609">"Това приложение"</string>
     <string name="privacy_details_menu_label" msgid="497348969731766203">"Поверителност на контактите ви"</string>
+    <string name="no_contacts_title" msgid="9093698629001614808">"Още няма контакти"</string>
+    <string name="no_contacts_description" msgid="2146615362021064099">"Контактите, които създавате или импортирате на устройството си, ще се показват тук"</string>
+    <string name="user_type_personal" msgid="45376141973820399">"Лични"</string>
+    <string name="user_type_unknown" msgid="8943747357005052121">"Потребител %1$d"</string>
+    <string name="picker_profile_paused_title" msgid="4083321530415544679">"%s приложения са поставени на пауза"</string>
+    <string name="picker_profile_paused_msg" msgid="2824051504891136577">"За да отворите контактите от %1$s, включете приложенията за %2$s и след това опитайте отново"</string>
+    <string name="picker_profile_admin_title" msgid="143963419213132290">"Блокирано от администратора ви"</string>
+    <string name="picker_profile_admin_msg" msgid="3568803258401767467">"Достъпът до данни от %1$s от приложение за %2$s не е разрешен"</string>
 </resources>

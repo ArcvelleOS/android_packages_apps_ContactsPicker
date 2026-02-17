@@ -23,6 +23,7 @@
     <string name="contacts_picker_chooser_activity_title" msgid="2187765291094588596">"Trình chọn người liên hệ"</string>
     <string name="contacts_picker_chooser_activity_no_app_can_handle_action" msgid="5179706900892295633">"Không có ứng dụng nào có thể xử lý việc này."</string>
     <string name="contacts_picker_top_bar_search_placeholder_hint" msgid="327380354282823462">"Tìm kiếm"</string>
+    <string name="contacts_picker_search_expanded_hint" msgid="5748895040745140240">"Tìm kiếm trong danh bạ"</string>
     <string name="contacts_picker_top_bar_search_icon_content_description" msgid="176636737534343950">"Tìm kiếm"</string>
     <string name="contacts_picker_top_bar_search_clear_text_content_description" msgid="5304568529121015922">"Xoá nội dung tìm kiếm"</string>
     <string name="contacts_picker_top_bar_search_arrow_back_content_description" msgid="5352118000652542537">"Đóng phần tìm kiếm"</string>
@@ -32,11 +33,10 @@
     <string name="emoji_header_icon_content_description" msgid="2926727446702186759">"Biểu tượng cười"</string>
     <string name="profile_switcher_content_description" msgid="4180951376809274279">"Dùng hồ sơ khác"</string>
     <string name="privacy_info_content_description" msgid="1633879608858355544">"Thông tin về quyền riêng tư"</string>
-    <string name="fast_scroller_handle_content_description" msgid="5785781874804788816">"Thanh điều khiển cuộn nhanh"</string>
+    <string name="scrubber_handle_content_description" msgid="1435669253806161568">"Thanh điều khiển cuộn nhanh"</string>
     <string name="contact_avatar_profile_picture_content_description" msgid="4077599609642932184">"Ảnh hồ sơ của người liên hệ"</string>
     <string name="contact_avatar_initial_content_description" msgid="8441303818086750337">"Tên viết tắt của người liên hệ"</string>
-    <!-- no translation found for no_name_placeholder (491336212594465933) -->
-    <skip />
+    <string name="no_name_placeholder" msgid="491336212594465933">"(Không tên)"</string>
     <string name="contact_item_expand_button_content_description" msgid="6128012837692026993">"Mở rộng"</string>
     <string name="contact_item_collapse_button_content_description" msgid="6742731080975214281">"Thu gọn"</string>
     <string name="contact_item_phone_icon_content_description" msgid="8117150273224121391">"Điện thoại"</string>
@@ -52,10 +52,18 @@
     <string name="selection_bottom_bar_back_button_label" msgid="6447375742968584743">"Quay lại"</string>
     <string name="selection_bottom_bar_done_button_label" msgid="6954303718344998674">"Xong"</string>
     <string name="privacy_banner_description" msgid="8397685763338639247">"%1$s sẽ chỉ có quyền truy cập vào thông tin của những người liên hệ bạn chọn"</string>
-    <string name="privacy_banner_more_details" msgid="1028945565826552764">"Thông tin khác"</string>
+    <string name="privacy_banner_more_details" msgid="2567058099706516908">"Thông tin khác"</string>
     <string name="privacy_banner_dismiss" msgid="3453400533805574139">"Đóng"</string>
     <string name="title_top_bar_back_button_content_description" msgid="7162880372713819715">"Quay lại"</string>
     <string name="preview_screen_title" msgid="2852036336424026274">"Xem trước"</string>
     <string name="default_calling_app_name" msgid="5345125341557406609">"Ứng dụng này"</string>
     <string name="privacy_details_menu_label" msgid="497348969731766203">"Chế độ quyền riêng tư của người liên hệ"</string>
+    <string name="no_contacts_title" msgid="9093698629001614808">"Không có người liên hệ nào"</string>
+    <string name="no_contacts_description" msgid="2146615362021064099">"Những người liên hệ mà bạn tạo hoặc nhập vào thiết bị của mình sẽ xuất hiện tại đây"</string>
+    <string name="user_type_personal" msgid="45376141973820399">"Cá nhân"</string>
+    <string name="user_type_unknown" msgid="8943747357005052121">"Người dùng %1$d"</string>
+    <string name="picker_profile_paused_title" msgid="4083321530415544679">"Đã tạm dừng các ứng dụng %s"</string>
+    <string name="picker_profile_paused_msg" msgid="2824051504891136577">"Để mở danh bạ %1$s, hãy bật các ứng dụng %2$s rồi thử lại"</string>
+    <string name="picker_profile_admin_title" msgid="143963419213132290">"Bị quản trị viên chặn"</string>
+    <string name="picker_profile_admin_msg" msgid="3568803258401767467">"Không được phép truy cập dữ liệu %1$s từ một ứng dụng %2$s"</string>
 </resources>

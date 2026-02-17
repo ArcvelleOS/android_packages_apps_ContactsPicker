@@ -21,6 +21,8 @@ import android.content.flags.Flags
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
+import androidx.collection.MutableLongObjectMap
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
@@ -56,6 +58,7 @@ import org.junit.runner.RunWith
 class ContactsPickerBodyTest {
 
     @get:Rule val composeTestRule = createComposeRule()
+
     @get:Rule val checkFlagsRule: CheckFlagsRule = DeviceFlagsValueProvider.createCheckFlagsRule()
 
     private val context: Context = ApplicationProvider.getApplicationContext()
@@ -138,12 +141,13 @@ class ContactsPickerBodyTest {
 
         setContentWithContactsPickerBody(contacts)
 
-        composeTestRule.onNode(hasTestTag(PRIVACY_BANNER_TEST_TAG)).assertIsDisplayed()
+        composeTestRule.waitForIdle()
 
+        composeTestRule.onNode(hasTestTag(PRIVACY_BANNER_TEST_TAG)).assertIsDisplayed()
         composeTestRule
             .onNode(hasTestTag(CONTACTS_LIST_TEST_TAG))
             .performScrollToIndex(contacts.size - 1)
-
+        composeTestRule.waitForIdle()
         composeTestRule.onNode(hasTestTag(PRIVACY_BANNER_TEST_TAG)).assertDoesNotExist()
     }
 
@@ -264,8 +268,53 @@ class ContactsPickerBodyTest {
     }
 
     @Test
+    fun contactsList_hasExtraBottomPadding_whenSelectionIsNotEmpty() {
+        val contacts = ContactTestDataFactory.createContactList(20)
+        val selectedContactsState = mutableStateOf(emptyContactsSelection())
+
+        composeTestRule.setContent {
+            ContactsPickerBody(
+                contacts = contacts,
+                selectedContacts = selectedContactsState.value,
+                isMultiSelectEnabled = true,
+                onPrivacyBannerMoreDetails = {},
+                onPrivacyBannerDismissRequest = {},
+                onToggleContactSelection = {},
+                onToggleEntrySelection = { _, _ -> },
+                callingAppName = null,
+                showPrivacyBanner = false,
+            )
+        }
+
+        val lastContactName = contacts.last().displayName
+        val listNode = composeTestRule.onNode(hasTestTag(CONTACTS_LIST_TEST_TAG))
+        listNode.performScrollToIndex(contacts.size - 1)
+        composeTestRule.waitForIdle()
+
+        val listBounds = listNode.fetchSemanticsNode().boundsInRoot
+        val lastItemBoundsEmpty =
+            composeTestRule.onNodeWithText(lastContactName).fetchSemanticsNode().boundsInRoot
+        val gapWhenEmpty = listBounds.bottom - lastItemBoundsEmpty.bottom
+        val newSelection = MutableLongObjectMap<Set<Long>>()
+        newSelection.put(contacts.first().id, emptySet())
+        selectedContactsState.value = newSelection
+        composeTestRule.waitForIdle()
+
+        listNode.performScrollToIndex(contacts.size - 1)
+        composeTestRule.waitForIdle()
+
+        val lastItemBoundsSelected =
+            composeTestRule.onNodeWithText(lastContactName).fetchSemanticsNode().boundsInRoot
+        val gapWhenSelected = listBounds.bottom - lastItemBoundsSelected.bottom
+
+        assertThat(gapWhenSelected).isGreaterThan(gapWhenEmpty)
+        assertThat(gapWhenSelected - gapWhenEmpty).isAtLeast(80f)
+    }
+
+    @Test
     fun scrubberHandle_isDisplayed_whenListIsScrolled() {
-        val contacts = ContactTestDataFactory.createContactList(50)
+        val contacts =
+            ContactTestDataFactory.createContactList(MIN_CONTACTS_COUNT_FOR_SCRUBBER_ACTIVATION)
         setContentWithContactsPickerBody(contacts)
         composeTestRule.onNodeWithTag(SCRUBBER_HANDLE_TEST_TAG).assertIsNotDisplayed()
         // Wake up scrubber handle
@@ -276,7 +325,8 @@ class ContactsPickerBodyTest {
 
     @Test
     fun scrubberHandle_isNotDisplayed_afterScrollAndDelay() {
-        val contacts = ContactTestDataFactory.createContactList(50)
+        val contacts =
+            ContactTestDataFactory.createContactList(MIN_CONTACTS_COUNT_FOR_SCRUBBER_ACTIVATION)
         setContentWithContactsPickerBody(contacts)
 
         performListScroll()
@@ -288,7 +338,8 @@ class ContactsPickerBodyTest {
 
     @Test
     fun scrubberHandle_positionChanges_whenListIsScrolled() {
-        val contacts = ContactTestDataFactory.createContactList(50)
+        val contacts =
+            ContactTestDataFactory.createContactList(MIN_CONTACTS_COUNT_FOR_SCRUBBER_ACTIVATION)
         setContentWithContactsPickerBody(contacts)
         // Wake up scrubber handle
         performListScroll(duration = 1000)
@@ -336,7 +387,8 @@ class ContactsPickerBodyTest {
 
     @Test
     fun scrubberLabel_appearsDuringDrag_andDisappearsOnRelease() {
-        val contacts = ContactTestDataFactory.createContactList(50)
+        val contacts =
+            ContactTestDataFactory.createContactList(MIN_CONTACTS_COUNT_FOR_SCRUBBER_ACTIVATION)
         setContentWithContactsPickerBody(contacts)
 
         // Wake up scrubber handle
@@ -354,6 +406,23 @@ class ContactsPickerBodyTest {
 
         // The label is no longer displayed after the drag is released.
         composeTestRule.onNodeWithTag(SCRUBBER_LABEL_TEST_TAG).assertIsNotDisplayed()
+    }
+
+    @Test
+    fun scrubber_isNotDisplayed_whenContactsAreLessThanMinimum() {
+        val contacts =
+            ContactTestDataFactory.createContactList(MIN_CONTACTS_COUNT_FOR_SCRUBBER_ACTIVATION - 1)
+        setContentWithContactsPickerBody(contacts)
+        composeTestRule.onNodeWithTag(SCRUBBER_HANDLE_TEST_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun scrubber_isDisplayed_whenContactsAreMoreThanOrEqualToMinimum() {
+        val contacts =
+            ContactTestDataFactory.createContactList(MIN_CONTACTS_COUNT_FOR_SCRUBBER_ACTIVATION)
+        setContentWithContactsPickerBody(contacts)
+        performListScroll()
+        composeTestRule.onNodeWithTag(SCRUBBER_HANDLE_TEST_TAG).assertIsDisplayed()
     }
 
     private fun setContentWithContactsPickerBody(contacts: List<Contact>) {

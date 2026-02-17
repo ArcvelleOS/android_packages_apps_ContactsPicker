@@ -23,10 +23,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.union
@@ -70,6 +72,8 @@ import com.android.contactspicker.ContactsUiState
 import com.android.contactspicker.R
 import com.android.contactspicker.SearchState
 import com.android.contactspicker.data.model.Contact
+import com.android.contactspicker.data.model.PickerUserStates
+import com.android.contactspicker.data.model.UserProfile
 import com.android.contactspicker.data.model.totalElementCount
 import com.android.contactspicker.navigation.ContactsPickerNavHost
 import com.android.contactspicker.ui.pickerscreen.SelectionBottomBar
@@ -90,6 +94,7 @@ private const val SCRIM_ALPHA = 0.32f
 fun ContactsPickerBottomSheet(
     onDismissRequest: () -> Unit,
     uiState: State<ContactsUiState>,
+    userStates: PickerUserStates?,
     snackbarEvents: Flow<SnackbarEvent>,
     onToggleContactSelection: (Contact) -> Unit,
     onToggleEntrySelection: (Long, Long) -> Unit,
@@ -105,6 +110,8 @@ fun ContactsPickerBottomSheet(
     onExitSearch: () -> Unit,
     onPreviewClicked: () -> Unit,
     onBackFromPreview: () -> Unit,
+    onProfileClicked: (UserProfile) -> Unit,
+    onDismissProfileBlockedDialog: () -> Unit,
 ) {
     val peekHeight = LocalConfiguration.current.screenHeightDp.dp * BOTTOM_SHEET_PEEK_HEIGHT_RATIO
     val navController = rememberNavController()
@@ -156,9 +163,9 @@ fun ContactsPickerBottomSheet(
         BottomSheetScaffold(
             modifier =
                 Modifier.windowInsetsPadding(
-                    WindowInsets.statusBars
-                        .union(WindowInsets.displayCutout)
-                        .union(WindowInsets.navigationBars)
+                    WindowInsets.statusBars.union(
+                        WindowInsets.displayCutout.only(WindowInsetsSides.Vertical)
+                    )
                 ),
             scaffoldState = scaffoldState,
             sheetPeekHeight = peekHeight,
@@ -170,6 +177,7 @@ fun ContactsPickerBottomSheet(
                 ContactsPickerNavHost(
                     navController = navController,
                     uiState = uiState,
+                    userStates = userStates,
                     onToggleContactSelection = onToggleContactSelection,
                     onToggleEntrySelection = onToggleEntrySelection,
                     onPrivacyBannerDismissRequest = onPrivacyBannerDismissRequest,
@@ -183,6 +191,8 @@ fun ContactsPickerBottomSheet(
                     onQueryChange = onQueryChange,
                     onExitSearch = onExitSearch,
                     onBackFromPreview = onBackFromPreview,
+                    onProfileClicked = onProfileClicked,
+                    onDismissProfileBlockedDialog = onDismissProfileBlockedDialog,
                 )
             },
         ) { /* Empty content of the screen that appears behind the bottom sheet. */
@@ -233,14 +243,16 @@ private fun AnimatedSelectionBottomBar(
     modifier: Modifier = Modifier,
 ) {
     val uiStateValue = uiState.value
-
     val isPreviewMode = uiStateValue is ContactsPreviewState
+
+    val density = LocalDensity.current
+    val navBarHeight = WindowInsets.navigationBars.getBottom(density)
 
     AnimatedVisibility(
         visible = uiStateValue.isSelectionBarVisible(),
-        enter = slideInVertically(initialOffsetY = { it }),
-        exit = slideOutVertically(targetOffsetY = { it }),
-        modifier = modifier.padding(start = 16.dp, end = 16.dp, bottom = 24.dp),
+        enter = slideInVertically(initialOffsetY = { it + navBarHeight }),
+        exit = slideOutVertically(targetOffsetY = { it + navBarHeight }),
+        modifier = modifier.padding(horizontal = 16.dp),
     ) {
         SelectionBottomBar(
             selectedCount = uiStateValue.selectedCount(),
@@ -254,6 +266,7 @@ private fun AnimatedSelectionBottomBar(
                 }
                 onClearSelection()
             },
+            modifier = Modifier.padding(bottom = 24.dp),
         )
     }
 }

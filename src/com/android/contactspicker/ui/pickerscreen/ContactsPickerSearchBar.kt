@@ -55,8 +55,7 @@ import com.android.contactspicker.data.model.Contact
 import com.android.contactspicker.data.model.EmailContact
 import com.android.contactspicker.data.model.PhoneContact
 
-private val CollapsedSearchBarPaddingValues =
-    PaddingValues(start = 8.dp, end = 8.dp, bottom = 16.dp)
+private val CollapsedSearchBarPaddingValues = PaddingValues(start = 8.dp, end = 8.dp)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -89,7 +88,10 @@ fun ContactsPickerSearchBar(
                 expanded = expanded,
                 onExpandedChange = onExpandedChange,
                 placeholder = {
-                    Text(stringResource(R.string.contacts_picker_top_bar_search_placeholder_hint))
+                    val hintRes =
+                        if (expanded) R.string.contacts_picker_search_expanded_hint
+                        else R.string.contacts_picker_top_bar_search_placeholder_hint
+                    Text(stringResource(hintRes))
                 },
                 leadingIcon = {
                     SearchBarLeadingIcon(
@@ -101,7 +103,7 @@ fun ContactsPickerSearchBar(
                     )
                 },
                 trailingIcon = {
-                    if (expanded) {
+                    if (expanded && query.isNotEmpty()) {
                         IconButton(onClick = { query = "" }) {
                             Icon(
                                 Icons.Filled.Close,
@@ -165,7 +167,10 @@ private fun SearchResultsList(
         // Whenever the query changes, scroll to the top
         listState.scrollToItem(0)
     }
-    LazyColumn(modifier = Modifier.fillMaxWidth().imePadding(), state = listState) {
+    LazyColumn(
+        modifier = Modifier.fillMaxWidth().imePadding().padding(horizontal = 16.dp),
+        state = listState,
+    ) {
         val searchResults = searchState.searchResults
         itemsIndexed(
             items = searchResults,
@@ -186,7 +191,8 @@ private fun SearchResultsList(
                 }
             val bottomPadding =
                 if (position == ItemPosition.LAST || position == ItemPosition.ONLY) 8.dp else 1.dp
-            val topPadding = if (position == ItemPosition.FIRST) 8.dp else 0.dp
+            val topPadding =
+                if (position == ItemPosition.FIRST || position == ItemPosition.ONLY) 24.dp else 0.dp
             Row(
                 modifier =
                     Modifier.fillMaxWidth().padding(bottom = bottomPadding, top = topPadding),
