@@ -30,6 +30,7 @@ import androidx.lifecycle.viewModelScope
 import com.android.contactspicker.ContactsListState
 import com.android.contactspicker.ContactsPreviewState
 import com.android.contactspicker.ContactsUiState
+import com.android.contactspicker.Flags
 import com.android.contactspicker.R
 import com.android.contactspicker.SearchState
 import com.android.contactspicker.config.ContactsPickerAction
@@ -47,6 +48,7 @@ import com.android.contactspicker.data.repository.ContactsPickerSessionProviderR
 import com.android.contactspicker.data.repository.ContactsRepository
 import com.android.contactspicker.data.repository.PrivacyBannerRepository
 import com.android.contactspicker.data.repository.UserRepository
+import com.android.contactspicker.logging.ContactsPickerLogger
 import dagger.Lazy
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -77,6 +79,13 @@ internal const val DEFAULT_SELECTION_LIMIT = 50
 // exception is thrown.
 internal const val MAX_ALLOWED_SELECTION_LIMIT = 100
 
+/**
+ * The minimum target SDK of the caller app that will be handled by the app. Intents from callers
+ * with target SDK below will be resent to the system with explicitly excluding the current activity
+ * to prevent loops.
+ */
+internal const val ACTION_PICK_TAKEOVER_TARGET_SDK_THRESHOLD = 37
+
 /** Events sent from the ViewModel to the UI to show a Snackbar. */
 sealed interface SnackbarEvent {
     data class ShowSelectionLimitReached(val limit: Int) : SnackbarEvent
@@ -105,6 +114,7 @@ constructor(
     private val privacyBannerRepository: PrivacyBannerRepository,
     private val userRepository: Lazy<UserRepository>,
     private val selectionHandlerFactory: ContactsSelectionHandler.Factory,
+    private val contactsPickerLogger: ContactsPickerLogger,
 ) : ViewModel() {
 
     private val contentResolver = context.contentResolver
@@ -159,18 +169,21 @@ constructor(
     fun clearSelection() = checkNotNull(selectionHandler).clearSelection()
 
     /**
-     * Determines the display mode based on the intent. Should only be called from the Activity to
-     * trigger the ViewModel's logic, as it changes the [ContactsUiState].
+     * Processes the intent fields and, if handled internally, initializes the session and starts
+     * data loading.
+     *
+     * @return true if handled internally; false if the intent should be forwarded.
      */
     @OpenForTesting
-    open fun processIntent(
+    open fun handleIntent(
         intentAction: String?,
         intentType: String?,
         intentExtras: Bundle?,
         callingAppName: String?,
         callingPackageName: String?,
         callingAppUid: Int,
-    ) {
+        callingAppTargetSdk: Int,
+    ): Boolean {
         this.callingAppName = callingAppName
         this.callingPackageName = callingPackageName
         this.callingAppUid = callingAppUid
@@ -179,6 +192,24 @@ constructor(
             ContactsPickerRequestConfig.create(intentAction, intentType, intentExtras).also {
                 pickerConfig = it
             }
+        val useSystemContactsPicker =
+            intentExtras?.getBoolean(Intent.EXTRA_USE_SYSTEM_CONTACTS_PICKER, false) ?: false
+
+        contactsPickerLogger.logContactsPickerSessionStarted(
+            callingAppUid = callingAppUid,
+            callingAppTargetSdk = callingAppTargetSdk,
+            pickerIntentAction = config.pickerAction,
+            requestedMimeTypes = config.requestedMimeTypes,
+            useSystemContactsPicker = useSystemContactsPicker,
+            matchAllRequestedMimeTypes = config.matchAllRequestedMimeTypes,
+        )
+
+        if (!shouldHandleIntent(callingAppTargetSdk, useSystemContactsPicker)) {
+
+            // TODO(b/441483549): Log ContactsPickerSessionFinished with
+            //  ContactsPickerSessionResult.SESSION_RESULT_FORWARDED
+            return false
+        }
 
         // TODO(b/479454402): Refactor isUserSwitchingEnabled into ContactsPickerRequestConfig
         // to decouple from ACTION_PICK_CONTACTS
@@ -203,6 +234,14 @@ constructor(
                 viewModelScope.launch { _snackbarEvents.emit(event) }
             }
         startObservingSelection()
+        return true
+    }
+
+    /** Returns true if the intent is eligible for internal handling based on SDK and flags. */
+    private fun shouldHandleIntent(targetSdk: Int, useSystemContactsPicker: Boolean): Boolean {
+        return targetSdk >= ACTION_PICK_TAKEOVER_TARGET_SDK_THRESHOLD ||
+            useSystemContactsPicker ||
+            Flags.enableActionPickTakeoverInDroidfood()
     }
 
     private fun startObservingSelection() {
@@ -283,26 +322,42 @@ constructor(
                     initialContacts =
                         contactsRepository.getContacts(config.queryMode, userState.selectedUserId)
                     Trace.endSection()
+                    if (initialContacts.isNotEmpty()) {
+                        // Only show the privacy banner if user hasn't seen it before for this
+                        // combination of uid and MIME types.
+                        showPrivacyBanner =
+                            !privacyBannerRepository.wasPrivacyBannerShown(
+                                callingAppUid,
+                                config.requestedMimeTypes,
+                            )
 
-                    // Only show the privacy banner if user hasn't seen it before for this
-                    // combination of uid and MIME types.
-                    showPrivacyBanner =
-                        !privacyBannerRepository.wasPrivacyBannerShown(
-                            callingAppUid,
-                            config.requestedMimeTypes,
-                        )
-
-                    // TODO(b/444459883): check and handle empty list
-                    _uiState.value =
-                        ContactsListState.Success(
-                            availableContacts = initialContacts,
-                            selectedContacts =
-                                checkNotNull(selectionHandler).selectedContacts.value,
-                            isMultiSelectEnabled = config.isMultiSelectEnabled,
-                            callingAppName = callingAppName,
-                            requestedMimeTypes = config.requestedMimeTypes,
-                            showPrivacyBanner = showPrivacyBanner,
-                        )
+                        _uiState.value =
+                            ContactsListState.Success(
+                                availableContacts = initialContacts,
+                                selectedContacts =
+                                    checkNotNull(selectionHandler).selectedContacts.value,
+                                isMultiSelectEnabled = config.isMultiSelectEnabled,
+                                callingAppName = callingAppName,
+                                requestedMimeTypes = config.requestedMimeTypes,
+                                showPrivacyBanner = showPrivacyBanner,
+                            )
+                    } else {
+                        val noContactsMessage =
+                            when (config.queryMode) {
+                                ContactsQueryMode.EmailsOnly ->
+                                    context.getString(R.string.no_email_contacts_title)
+                                ContactsQueryMode.PhonesOnly ->
+                                    context.getString(R.string.no_phone_contacts_title)
+                                ContactsQueryMode.DisplayNamesOnly ->
+                                    context.getString(R.string.no_contacts_title)
+                                is ContactsQueryMode.Custom -> {
+                                    if (contactsRepository.hasAnyContacts(userState.selectedUserId))
+                                        context.getString(R.string.no_custom_details_contacts_title)
+                                    else context.getString(R.string.no_contacts_title)
+                                }
+                            }
+                        _uiState.value = ContactsListState.NoResults(message = noContactsMessage)
+                    }
                 } catch (e: Exception) {
                     // TODO(b/444459883): iterate on error handling and error messages
                     if (e is kotlinx.coroutines.CancellationException) {

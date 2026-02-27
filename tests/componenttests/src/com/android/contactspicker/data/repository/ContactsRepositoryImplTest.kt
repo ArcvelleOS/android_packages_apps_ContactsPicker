@@ -37,6 +37,7 @@ import androidx.core.net.toUri
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.bedstead.nene.TestApis
+import com.android.contactspicker.R
 import com.android.contactspicker.config.ContactsQueryMode
 import com.android.contactspicker.data.model.DisplayNameContact
 import com.android.contactspicker.data.model.EmailContact
@@ -169,7 +170,8 @@ class ContactsRepositoryImplTest {
         assertThat(contacts).isNotEmpty()
         val contact = contacts.first()
         assertThat(contact).isInstanceOf(DisplayNameContact::class.java)
-        assertThat(contact.displayName).isEqualTo("(No name)")
+        assertThat(contact.displayName)
+            .isEqualTo(realContext.getString(R.string.no_name_placeholder))
     }
 
     @Test
@@ -543,6 +545,34 @@ class ContactsRepositoryImplTest {
             )
 
         assertThat(result).containsExactly(emailDataId, phoneDataId)
+    }
+
+    @Test
+    fun hasAnyContacts_cursorHasRows_returnsTrue() = runTest {
+        val cursor = MatrixCursor(arrayOf(Contacts._ID))
+        cursor.addRow(arrayOf(1))
+        fakeContentProvider.setCursorForUri(Contacts.CONTENT_URI, cursor)
+
+        val result = repository.hasAnyContacts(currentUserId)
+
+        assertThat(result).isTrue()
+    }
+
+    @Test
+    fun hasAnyContacts_cursorEmpty_returnsFalse() = runTest {
+        val cursor = MatrixCursor(arrayOf(Contacts._ID))
+        fakeContentProvider.setCursorForUri(Contacts.CONTENT_URI, cursor)
+
+        val result = repository.hasAnyContacts(currentUserId)
+
+        assertThat(result).isFalse()
+    }
+
+    @Test
+    fun hasAnyContacts_cursorNull_returnsFalse() = runTest {
+        val result = repository.hasAnyContacts(currentUserId)
+
+        assertThat(result).isFalse()
     }
 
     @Test
