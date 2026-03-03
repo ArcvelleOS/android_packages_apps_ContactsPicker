@@ -27,4 +27,27 @@ interface ContactsPickerLogger {
         useSystemContactsPicker: Boolean,
         matchAllRequestedMimeTypes: Boolean,
     )
+
+    fun logContactsPickerSessionFinishedSuccessfully(
+        numContactsSelected: Int,
+        contactsSelectedFromFavorites: Boolean,
+        contactsSelectedFromSearch: Boolean,
+    )
+
+    /**
+     * Marks that the user opened the preview page. Will be logged when the session finished is
+     * logged.
+     */
+    fun previewOpened()
+
+    /**
+     * Marks that the user has search contacts. Will be logged when the session finished is logged.
+     */
+    fun searchUsed()
+
+    /**
+     * Marks that the privacy banner has been dismissed by the user. Will be logged when the session
+     * finished is logged.
+     */
+    fun privacyBannerDismissedByUser()
 }
