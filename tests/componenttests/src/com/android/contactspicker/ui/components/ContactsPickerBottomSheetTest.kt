@@ -178,8 +178,8 @@ class ContactsPickerBottomSheetTest {
                         ),
                     userState = PickerUserState.Loading,
                     snackbarEvents = flowOf(),
-                    onToggleContactSelection = {},
-                    onToggleEntrySelection = { _, _ -> },
+                    onToggleContactSelection = { _, _ -> },
+                    onToggleEntrySelection = { _, _, _ -> },
                     onClearSelection = {},
                     onDoneClicked = {},
                     onQueryChange = {},
@@ -229,8 +229,8 @@ class ContactsPickerBottomSheetTest {
                         ),
                     userState = PickerUserState.Loading,
                     snackbarEvents = flowOf(),
-                    onToggleContactSelection = {},
-                    onToggleEntrySelection = { _, _ -> },
+                    onToggleContactSelection = { _, _ -> },
+                    onToggleEntrySelection = { _, _, _ -> },
                     onClearSelection = {},
                     onDoneClicked = {},
                     onQueryChange = {},
@@ -296,8 +296,8 @@ class ContactsPickerBottomSheetTest {
                         ),
                     userState = PickerUserState.Loading,
                     snackbarEvents = flowOf(),
-                    onToggleEntrySelection = { _, _ -> },
-                    onToggleContactSelection = {},
+                    onToggleEntrySelection = { _, _, _ -> },
+                    onToggleContactSelection = { _, _ -> },
                     onClearSelection = {},
                     onDoneClicked = {},
                     onQueryChange = onSearchQueryChanged,
@@ -350,8 +350,8 @@ class ContactsPickerBottomSheetTest {
                     ),
                 userState = PickerUserState.Loading,
                 snackbarEvents = events,
-                onToggleContactSelection = {},
-                onToggleEntrySelection = { _, _ -> },
+                onToggleContactSelection = { _, _ -> },
+                onToggleEntrySelection = { _, _, _ -> },
                 onClearSelection = {},
                 onDoneClicked = {},
                 onQueryChange = {},
@@ -397,8 +397,8 @@ class ContactsPickerBottomSheetTest {
                         ),
                     userState = PickerUserState.Loading,
                     snackbarEvents = flowOf(),
-                    onToggleContactSelection = {},
-                    onToggleEntrySelection = { _, _ -> },
+                    onToggleContactSelection = { _, _ -> },
+                    onToggleEntrySelection = { _, _, _ -> },
                     onClearSelection = {},
                     onDoneClicked = {},
                     onQueryChange = {},
@@ -440,8 +440,8 @@ class ContactsPickerBottomSheetTest {
                         ),
                     userState = PickerUserState.Loading,
                     snackbarEvents = flowOf(),
-                    onToggleContactSelection = {},
-                    onToggleEntrySelection = { _, _ -> },
+                    onToggleContactSelection = { _, _ -> },
+                    onToggleEntrySelection = { _, _, _ -> },
                     onClearSelection = {},
                     onDoneClicked = {},
                     onQueryChange = {},
@@ -516,8 +516,8 @@ class ContactsPickerBottomSheetTest {
                         ),
                     userState = PickerUserState.Loading,
                     snackbarEvents = flowOf(),
-                    onToggleContactSelection = {},
-                    onToggleEntrySelection = { _, _ -> },
+                    onToggleContactSelection = { _, _ -> },
+                    onToggleEntrySelection = { _, _, _ -> },
                     onClearSelection = {},
                     onDoneClicked = {},
                     onQueryChange = {},
@@ -554,6 +554,65 @@ class ContactsPickerBottomSheetTest {
         assertThat(selectionBarBounds.width).isLessThan(bottomSheetBounds.width)
     }
 
+    @Test
+    fun selectionBar_isVerticallyAlignedWithBottomSheet() {
+        // GIVEN the bottom sheet is visible with a selectable contact
+        selectedContacts = emptyContactsSelection()
+        composeTestRule.setContent {
+            ContactsPickerAppTheme {
+                ContactsPickerBottomSheet(
+                    onDismissRequest = {},
+                    uiState =
+                        mutableStateOf(
+                            ContactsListState.Success(
+                                availableContacts = listOf(testContact),
+                                selectedContacts = selectedContacts,
+                                isMultiSelectEnabled = true,
+                                callingAppName = null,
+                                showPrivacyBanner = false,
+                                requestedMimeTypes = emptyList(),
+                            )
+                        ),
+                    userState = PickerUserState.Loading,
+                    snackbarEvents = flowOf(),
+                    onToggleContactSelection = { _, _ -> },
+                    onToggleEntrySelection = { _, _, _ -> },
+                    onClearSelection = {},
+                    onDoneClicked = {},
+                    onQueryChange = {},
+                    onExitSearch = {},
+                    onPreviewClicked = {},
+                    onBackFromPreview = {},
+                    onPrivacyBannerDismissRequest = {},
+                    onProfileClicked = {},
+                    onDismissProfileBlockedDialog = {},
+                )
+            }
+        }
+
+        // WHEN a contact is selected, making the selection bar visible
+        selectedContacts = contactsSelectionOf(testContact.id, setOf(testContact.id))
+        composeTestRule.waitForIdle()
+
+        // THEN the selection bar should be vertically aligned with the bottom of the bottom sheet,
+        // as both should respect the same navigation bar insets.
+        val bottomSheetBounds =
+            composeTestRule.onNodeWithTag(BOTTOM_SHEET_TEST_TAG).getUnclippedBoundsInRoot()
+
+        val clearButtonNode =
+            composeTestRule.onNodeWithContentDescription(
+                context.getString(R.string.selection_bottom_bar_clear_button_content_description)
+            )
+
+        // The parent of the clear button is the SelectionBottomBar (a Row)
+        val selectionBarBounds = clearButtonNode.onParent().getUnclippedBoundsInRoot()
+
+        // The SelectionBottomBar should be positioned above the bottom of the bottom sheet,
+        // which implies that it respects the navigation bar insets and has its own padding.
+        // This is more resilient than asserting an exact padding value.
+        assertThat(selectionBarBounds.bottom).isLessThan(bottomSheetBounds.bottom)
+    }
+
     private fun setupBottomSheet(
         onDismissRequest: () -> Unit = {},
         uiState: ContactsUiState = ContactsListState.Loading,
@@ -565,8 +624,8 @@ class ContactsPickerBottomSheetTest {
                     uiState = mutableStateOf(uiState),
                     userState = PickerUserState.Loading,
                     snackbarEvents = flowOf(),
-                    onToggleContactSelection = {},
-                    onToggleEntrySelection = { _, _ -> },
+                    onToggleContactSelection = { _, _ -> },
+                    onToggleEntrySelection = { _, _, _ -> },
                     onClearSelection = {},
                     onDoneClicked = {},
                     onQueryChange = {},
