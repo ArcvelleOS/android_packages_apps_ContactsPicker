@@ -20,10 +20,10 @@ import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
 import com.android.contactspicker.data.model.Contact
-import com.android.contactspicker.data.model.SectionKey
-import com.android.contactspicker.data.model.SectionKey.LetterKey
 import com.android.contactspicker.testdata.ContactTestDataFactory
+import com.android.contactspicker.ui.pickerscreen.SectionKey
 import com.google.common.truth.Truth.assertThat
+import java.util.SortedMap
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -36,11 +36,7 @@ class ScrubberPositionToListIndexMapperTest {
 
     @Test
     fun toListIndex_noContacts_returnsZero() {
-        val mapper =
-            ScrubberPositionToListIndexMapper(
-                sortedMapOf(SectionKey.COMPARATOR),
-                showPrivacyBanner = false,
-            )
+        val mapper = ScrubberPositionToListIndexMapper(sortedMapOf(), showPrivacyBanner = false)
         assertThat(mapper.toListIndex(0.5f)).isEqualTo(0)
         assertThat(mapper.toListIndex(1f)).isEqualTo(0)
     }
@@ -48,8 +44,8 @@ class ScrubberPositionToListIndexMapperTest {
     @Test
     fun toListIndex_singleSection_noPrivacyBanner_mapsCorrectly() {
         val contacts = ContactTestDataFactory.createContactList(11)
-        val sections: Map<SectionKey, List<Contact>> =
-            sortedMapOf(SectionKey.COMPARATOR, LetterKey('A') to contacts)
+        val sections: SortedMap<SectionKey, List<Contact>> =
+            sortedMapOf(SectionKey.LetterKey('A') to contacts)
         val mapper = ScrubberPositionToListIndexMapper(sections, showPrivacyBanner = false)
         // Expected Result is (11 - 1)*verticalOffsetFraction + stickyHeaderOffset(1)
         assertThat(mapper.toListIndex(0f)).isEqualTo(0)
@@ -61,8 +57,8 @@ class ScrubberPositionToListIndexMapperTest {
     @Test
     fun toListIndex_singleSection_withPrivacyBanner_mapsCorrectly() {
         val contacts = ContactTestDataFactory.createContactList(11)
-        val sections: Map<SectionKey, List<Contact>> =
-            sortedMapOf(SectionKey.COMPARATOR, LetterKey('A') to contacts)
+        val sections: SortedMap<SectionKey, List<Contact>> =
+            sortedMapOf(SectionKey.LetterKey('A') to contacts)
         val mapper = ScrubberPositionToListIndexMapper(sections, showPrivacyBanner = true)
         // Expected Result is (11 - 1)*verticalOffsetFraction + stickyHeaderOffset(1) +
         // PrivacyBannerOffset(1)
@@ -75,13 +71,12 @@ class ScrubberPositionToListIndexMapperTest {
     @Test
     fun toListIndex_multipleSections_noPrivacyBanner_mapsCorrectly() {
         val contacts = ContactTestDataFactory.createContactList(21)
-        val sections: Map<SectionKey, List<Contact>> =
+        val sections: SortedMap<SectionKey, List<Contact>> =
             sortedMapOf(
-                SectionKey.COMPARATOR,
-                LetterKey('A') to contacts.subList(0, 5),
-                LetterKey('B') to contacts.subList(5, 10),
-                LetterKey('C') to contacts.subList(10, 15),
-                LetterKey('D') to contacts.subList(15, 21),
+                SectionKey.LetterKey('A') to contacts.subList(0, 5),
+                SectionKey.LetterKey('B') to contacts.subList(5, 10),
+                SectionKey.LetterKey('C') to contacts.subList(10, 15),
+                SectionKey.LetterKey('D') to contacts.subList(15, 21),
             )
         val mapper = ScrubberPositionToListIndexMapper(sections, showPrivacyBanner = false)
         // Edge case where we map 0f verticalOffsetFraction to top of the list, instead of first
@@ -102,13 +97,12 @@ class ScrubberPositionToListIndexMapperTest {
     @Test
     fun toListIndex_multipleSections_withPrivacyBanner() {
         val contacts = ContactTestDataFactory.createContactList(21)
-        val sections: Map<SectionKey, List<Contact>> =
+        val sections: SortedMap<SectionKey, List<Contact>> =
             sortedMapOf(
-                SectionKey.COMPARATOR,
-                LetterKey('A') to contacts.subList(0, 5),
-                LetterKey('B') to contacts.subList(5, 10),
-                LetterKey('C') to contacts.subList(10, 15),
-                LetterKey('D') to contacts.subList(15, 21),
+                SectionKey.LetterKey('A') to contacts.subList(0, 5),
+                SectionKey.LetterKey('B') to contacts.subList(5, 10),
+                SectionKey.LetterKey('C') to contacts.subList(10, 15),
+                SectionKey.LetterKey('D') to contacts.subList(15, 21),
             )
         val mapper = ScrubberPositionToListIndexMapper(sections, showPrivacyBanner = true)
         // Edge case where we map 0f verticalOffsetFraction to top of the list, instead of first
@@ -133,20 +127,16 @@ class ScrubberPositionToListIndexMapperTest {
 
     @Test
     fun toVerticalOffsetFraction_noContacts_returnsZero() {
-        val mapper =
-            ScrubberPositionToListIndexMapper(
-                sortedMapOf(SectionKey.COMPARATOR),
-                showPrivacyBanner = false,
-            )
+        val mapper = ScrubberPositionToListIndexMapper(sortedMapOf(), showPrivacyBanner = false)
         assertThat(mapper.toVerticalOffsetFraction(10f)).isEqualTo(0f)
     }
 
     @Test
     fun toVerticalOffsetFraction_SingleContact_returnsZero() {
-        val sections: Map<SectionKey, List<Contact>> =
+        val sections: SortedMap<SectionKey, List<Contact>> =
             sortedMapOf(
-                SectionKey.COMPARATOR,
-                LetterKey('A') to listOf(ContactTestDataFactory.GENERIC_DISPLAY_NAME_CONTACT),
+                SectionKey.LetterKey('A') to
+                    listOf(ContactTestDataFactory.GENERIC_DISPLAY_NAME_CONTACT)
             )
 
         val mapper = ScrubberPositionToListIndexMapper(sections, showPrivacyBanner = false)
@@ -156,11 +146,10 @@ class ScrubberPositionToListIndexMapperTest {
     @Test
     fun toVerticalOffsetFraction_multipleSections_noPrivacyBanner_mapsCorrectly() {
         val contacts = ContactTestDataFactory.createContactList(11)
-        val sections: Map<SectionKey, List<Contact>> =
+        val sections: SortedMap<SectionKey, List<Contact>> =
             sortedMapOf(
-                SectionKey.COMPARATOR,
-                LetterKey('A') to contacts.subList(0, 5),
-                LetterKey('B') to contacts.subList(5, 11),
+                SectionKey.LetterKey('A') to contacts.subList(0, 5),
+                SectionKey.LetterKey('B') to contacts.subList(5, 11),
             )
         val mapper = ScrubberPositionToListIndexMapper(sections, showPrivacyBanner = false)
         // First section sticky header maps to 0f verticalOffsetFraction
@@ -182,11 +171,10 @@ class ScrubberPositionToListIndexMapperTest {
     @Test
     fun toVerticalOffsetFraction_multipleSections_withPrivacyBanner() {
         val contacts = ContactTestDataFactory.createContactList(11)
-        val sections: Map<SectionKey, List<Contact>> =
+        val sections: SortedMap<SectionKey, List<Contact>> =
             sortedMapOf(
-                SectionKey.COMPARATOR,
-                LetterKey('A') to contacts.subList(0, 5),
-                LetterKey('B') to contacts.subList(5, 11),
+                SectionKey.LetterKey('A') to contacts.subList(0, 5),
+                SectionKey.LetterKey('B') to contacts.subList(5, 11),
             )
         val mapper = ScrubberPositionToListIndexMapper(sections, showPrivacyBanner = true)
 
@@ -212,11 +200,10 @@ class ScrubberPositionToListIndexMapperTest {
     @Test
     fun toVerticalOffsetFraction_preciseListIndex_mapsCorrectly() {
         val contacts = ContactTestDataFactory.createContactList(11)
-        val sections: Map<SectionKey, List<Contact>> =
+        val sections: SortedMap<SectionKey, List<Contact>> =
             sortedMapOf(
-                SectionKey.COMPARATOR,
-                LetterKey('A') to contacts.subList(0, 5),
-                LetterKey('B') to contacts.subList(5, 11),
+                SectionKey.LetterKey('A') to contacts.subList(0, 5),
+                SectionKey.LetterKey('B') to contacts.subList(5, 11),
             )
         val mapper = ScrubberPositionToListIndexMapper(sections, showPrivacyBanner = false)
 

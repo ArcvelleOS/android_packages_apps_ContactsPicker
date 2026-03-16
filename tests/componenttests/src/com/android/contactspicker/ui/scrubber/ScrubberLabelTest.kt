@@ -24,9 +24,7 @@ import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.android.contactspicker.data.model.SectionKey.EmojiSection
-import com.android.contactspicker.data.model.SectionKey.FavoriteSection
-import com.android.contactspicker.data.model.SectionKey.LetterKey
+import com.android.contactspicker.ui.pickerscreen.SectionKey
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -46,7 +44,7 @@ class ScrubberLabelTest {
 
     @Test
     fun scrubberLabel_whenSectionKeyIsLetter_displaysText() {
-        val letterKey = LetterKey('A')
+        val letterKey = SectionKey.LetterKey('A')
         composeTestRule.setContent { ScrubberLabel(sectionKey = letterKey) }
         assertLabelContent(visibleTag = SCRUBBER_LABEL_TEXT_TEST_TAG)
         composeTestRule.onNodeWithTag(SCRUBBER_LABEL_TEXT_TEST_TAG).assertTextEquals("A")
@@ -54,14 +52,14 @@ class ScrubberLabelTest {
 
     @Test
     fun scrubberLabel_whenSectionKeyIsFavorite_displaysFavoriteIcon() {
-        val favoriteKey = FavoriteSection
+        val favoriteKey = SectionKey.FavoriteIconKey
         composeTestRule.setContent { ScrubberLabel(sectionKey = favoriteKey) }
         assertLabelContent(visibleTag = SCRUBBER_LABEL_FAVORITE_ICON_TEST_TAG)
     }
 
     @Test
     fun scrubberLabel_whenSectionKeyIsEmoji_displaysEmojiIcon() {
-        val emojiKey = EmojiSection
+        val emojiKey = SectionKey.EmojiIconKey
         composeTestRule.setContent { ScrubberLabel(sectionKey = emojiKey) }
         assertLabelContent(visibleTag = SCRUBBER_LABEL_EMOJI_ICON_TEST_TAG)
     }

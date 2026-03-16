@@ -77,8 +77,7 @@ class ContactsPickerBottomSheetTest {
     private val testContact = ContactTestDataFactory.GENERIC_DISPLAY_NAME_CONTACT
     private val testSuccessState =
         ContactsListState.Success(
-            availableContactsGroups =
-                ContactTestDataFactory.groupContactsForTest(listOf(testContact)),
+            listOf(testContact),
             selectedContacts = selectedContacts,
             isMultiSelectEnabled = false,
             callingAppName = null,
@@ -158,10 +157,7 @@ class ContactsPickerBottomSheetTest {
                     uiState =
                         mutableStateOf(
                             ContactsListState.Success(
-                                availableContactsGroups =
-                                    ContactTestDataFactory.groupContactsForTest(
-                                        listOf(testContact)
-                                    ),
+                                availableContacts = listOf(testContact),
                                 selectedContacts = selectedContacts,
                                 isMultiSelectEnabled = false,
                                 callingAppName = null,
@@ -212,10 +208,7 @@ class ContactsPickerBottomSheetTest {
                     uiState =
                         mutableStateOf(
                             ContactsListState.Success(
-                                availableContactsGroups =
-                                    ContactTestDataFactory.groupContactsForTest(
-                                        listOf(testContact)
-                                    ),
+                                availableContacts = listOf(testContact),
                                 selectedContacts = selectedContacts,
                                 isMultiSelectEnabled = false,
                                 callingAppName = null,
@@ -282,10 +275,7 @@ class ContactsPickerBottomSheetTest {
                     uiState =
                         mutableStateOf(
                             ContactsListState.Success(
-                                availableContactsGroups =
-                                    ContactTestDataFactory.groupContactsForTest(
-                                        listOf(testContact)
-                                    ),
+                                availableContacts = listOf(testContact),
                                 selectedContacts = selectedContacts,
                                 false,
                                 callingAppName = null,
@@ -338,8 +328,7 @@ class ContactsPickerBottomSheetTest {
                 uiState =
                     mutableStateOf(
                         ContactsListState.Success(
-                            availableContactsGroups =
-                                ContactTestDataFactory.groupContactsForTest(listOf(testContact)),
+                            availableContacts = listOf(testContact),
                             selectedContacts =
                                 contactsSelectionOf(testContact.id, setOf(testContact.id)),
                             isMultiSelectEnabled = false,
@@ -429,10 +418,7 @@ class ContactsPickerBottomSheetTest {
                     uiState =
                         mutableStateOf(
                             ContactsListState.Success(
-                                availableContactsGroups =
-                                    ContactTestDataFactory.groupContactsForTest(
-                                        listOf(testContact)
-                                    ),
+                                availableContacts = listOf(testContact),
                                 selectedContacts =
                                     contactsSelectionOf(testContact.id, setOf(testContact.id)),
                                 isMultiSelectEnabled = false,
@@ -509,10 +495,7 @@ class ContactsPickerBottomSheetTest {
                     uiState =
                         mutableStateOf(
                             ContactsListState.Success(
-                                availableContactsGroups =
-                                    ContactTestDataFactory.groupContactsForTest(
-                                        listOf(testContact)
-                                    ),
+                                availableContacts = listOf(testContact),
                                 selectedContacts = selectedContacts,
                                 isMultiSelectEnabled = true,
                                 callingAppName = null,
@@ -571,10 +554,7 @@ class ContactsPickerBottomSheetTest {
                     uiState =
                         mutableStateOf(
                             ContactsListState.Success(
-                                availableContactsGroups =
-                                    ContactTestDataFactory.groupContactsForTest(
-                                        listOf(testContact)
-                                    ),
+                                availableContacts = listOf(testContact),
                                 selectedContacts = selectedContacts,
                                 isMultiSelectEnabled = true,
                                 callingAppName = null,

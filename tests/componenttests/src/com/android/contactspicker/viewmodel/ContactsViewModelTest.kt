@@ -268,8 +268,7 @@ class ContactsViewModelTest {
             .containsExactly(
                 ContactsListState.Loading,
                 ContactsListState.Success(
-                    availableContactsGroups =
-                        ContactTestDataFactory.groupContactsForTest(testContacts),
+                    testContacts,
                     emptyContactsSelection(),
                     false,
                     callingAppName = TEST_APP_NAME,
@@ -307,8 +306,7 @@ class ContactsViewModelTest {
             .containsExactly(
                 ContactsListState.Loading,
                 ContactsListState.Success(
-                    availableContactsGroups =
-                        ContactTestDataFactory.groupContactsForTest(testContacts),
+                    testContacts,
                     emptyContactsSelection(),
                     false,
                     callingAppName = null,
@@ -327,8 +325,7 @@ class ContactsViewModelTest {
         initializeViewModelForLegacyActionPick(listOf(displayNameContact))
 
         val successState = viewModel.uiState.value as ContactsListState.Success
-        assertThat(successState.availableContactsGroups)
-            .isEqualTo(ContactTestDataFactory.groupContactsForTest(listOf(displayNameContact)))
+        assertThat(successState.availableContacts).containsExactly(displayNameContact)
         assertThat(successState.selectedContacts.isEmpty()).isTrue()
     }
 
@@ -1051,10 +1048,7 @@ class ContactsViewModelTest {
         assertThat(collectedStates)
             .containsExactly(
                 ContactsListState.Success(
-                    availableContactsGroups =
-                        ContactTestDataFactory.groupContactsForTest(
-                            ContactTestDataFactory.GENERIC_DISPLAY_NAME_CONTACT_LIST
-                        ),
+                    ContactTestDataFactory.GENERIC_DISPLAY_NAME_CONTACT_LIST,
                     emptyContactsSelection(),
                     false,
                     callingAppName = "TestApp",
@@ -1236,8 +1230,7 @@ class ContactsViewModelTest {
         val finalListState = viewModel.uiState.value as ContactsListState.Success
 
         // Verify contacts list is the initial list
-        assertThat(finalListState.availableContactsGroups)
-            .isEqualTo(ContactTestDataFactory.groupContactsForTest(initialContacts))
+        assertThat(finalListState.availableContacts).isEqualTo(initialContacts)
 
         // Verify selection is preserved
         assertThat(finalListState.selectedContacts).isEqualTo(selectionAfterSearch)
@@ -1363,8 +1356,7 @@ class ContactsViewModelTest {
         val state = viewModel.uiState.value
         assertThat(state).isInstanceOf(ContactsListState.Success::class.java)
         val listState = state as ContactsListState.Success
-        assertThat(listState.availableContactsGroups)
-            .isEqualTo(ContactTestDataFactory.groupContactsForTest(listOf(contact)))
+        assertThat(listState.availableContacts).containsExactly(contact)
         assertThat(listState.selectedContacts).isEqualTo(selection)
     }
 

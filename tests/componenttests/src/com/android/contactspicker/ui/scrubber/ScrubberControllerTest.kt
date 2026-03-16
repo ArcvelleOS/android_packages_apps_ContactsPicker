@@ -23,12 +23,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.contactspicker.data.model.Contact
-import com.android.contactspicker.data.model.SectionKey
-import com.android.contactspicker.data.model.SectionKey.EmojiSection
-import com.android.contactspicker.data.model.SectionKey.FavoriteSection
-import com.android.contactspicker.data.model.SectionKey.LetterKey
 import com.android.contactspicker.testdata.ContactTestDataFactory
+import com.android.contactspicker.ui.pickerscreen.SectionKey
 import com.google.common.truth.Truth.assertThat
+import java.util.SortedMap
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -44,7 +42,8 @@ class ScrubberControllerTest {
     private var lastScrollRequest: Int? = null
 
     private fun setContent(
-        contactSections: Map<SectionKey, List<Contact>>,
+        contactSections: SortedMap<SectionKey, List<Contact>>,
+        numberOfFavoriteContacts: Int = 0,
         showPrivacyBanner: Boolean = false,
     ) {
         lastScrollRequest = null
@@ -52,6 +51,7 @@ class ScrubberControllerTest {
             controller =
                 rememberScrubberController(
                     contactSections = contactSections,
+                    numberOfFavoriteContacts = numberOfFavoriteContacts,
                     showPrivacyBanner = showPrivacyBanner,
                 )
 
@@ -65,8 +65,8 @@ class ScrubberControllerTest {
     @Test
     fun scrubberDrag_emitsScrollRequest_atFullDrag() {
         val contacts = ContactTestDataFactory.createContactList(25)
-        val contactSections: Map<SectionKey, List<Contact>> =
-            sortedMapOf(SectionKey.COMPARATOR, LetterKey('A') to contacts)
+        val contactSections: SortedMap<SectionKey, List<Contact>> =
+            sortedMapOf(SectionKey.LetterKey('A') to contacts)
         setContent(contactSections)
 
         performScrubberDrag(dragFraction = 1.0f)
@@ -77,8 +77,8 @@ class ScrubberControllerTest {
     @Test
     fun scrubberDrag_emitsScrollRequest_atHalfwayDrag() {
         val contacts = ContactTestDataFactory.createContactList(25)
-        val contactSections: Map<SectionKey, List<Contact>> =
-            sortedMapOf(SectionKey.COMPARATOR, LetterKey('A') to contacts)
+        val contactSections: SortedMap<SectionKey, List<Contact>> =
+            sortedMapOf(SectionKey.LetterKey('A') to contacts)
         setContent(contactSections)
 
         performScrubberDrag(dragFraction = 0.5f)
@@ -89,8 +89,8 @@ class ScrubberControllerTest {
     @Test
     fun updateVerticalOffsetFraction_updatesScrubberState() {
         val contacts = ContactTestDataFactory.createContactList(25)
-        val contactSections: Map<SectionKey, List<Contact>> =
-            sortedMapOf(SectionKey.COMPARATOR, LetterKey('A') to contacts)
+        val contactSections: SortedMap<SectionKey, List<Contact>> =
+            sortedMapOf(SectionKey.LetterKey('A') to contacts)
         setContent(contactSections)
 
         composeTestRule.runOnUiThread {
@@ -104,8 +104,8 @@ class ScrubberControllerTest {
     @Test
     fun updateVerticalOffsetFraction_doesNotUpdateScrubber_whenDragging() {
         val contacts = ContactTestDataFactory.createContactList(25)
-        val contactSections: Map<SectionKey, List<Contact>> =
-            sortedMapOf(SectionKey.COMPARATOR, LetterKey('A') to contacts)
+        val contactSections: SortedMap<SectionKey, List<Contact>> =
+            sortedMapOf(SectionKey.LetterKey('A') to contacts)
         setContent(contactSections)
 
         // 1. Position Scrubber to Top and set Dragging = true
@@ -123,7 +123,7 @@ class ScrubberControllerTest {
 
     @Test
     fun isListScrollEnabledForUser_isTrue_whenNotDragging() {
-        setContent(sortedMapOf(SectionKey.COMPARATOR))
+        setContent(sortedMapOf())
         composeTestRule.runOnUiThread { controller.scrubberState.setDragging(false) }
 
         assertThat(controller.isListScrollEnabledForUser).isTrue()
@@ -131,7 +131,7 @@ class ScrubberControllerTest {
 
     @Test
     fun isListScrollEnabledForUser_isFalse_whenDragging() {
-        setContent(sortedMapOf(SectionKey.COMPARATOR))
+        setContent(sortedMapOf())
         composeTestRule.runOnUiThread { controller.scrubberState.setDragging(true) }
 
         assertThat(controller.isListScrollEnabledForUser).isFalse()
@@ -139,7 +139,7 @@ class ScrubberControllerTest {
 
     @Test
     fun labelSectionKey_isNull_whenNotDragging() {
-        setContent(sortedMapOf(SectionKey.COMPARATOR))
+        setContent(sortedMapOf())
         composeTestRule.runOnUiThread { controller.scrubberState.setDragging(false) }
         composeTestRule.waitForIdle()
 
@@ -156,45 +156,44 @@ class ScrubberControllerTest {
             )
         val regularContact =
             ContactTestDataFactory.createDisplayNameContact(id = 2, displayName = "Reg")
-        val contactSections: Map<SectionKey, List<Contact>> =
+        val contactSections: SortedMap<SectionKey, List<Contact>> =
             sortedMapOf(
-                SectionKey.COMPARATOR,
-                FavoriteSection to listOf(favoriteContact),
-                LetterKey('R') to listOf(regularContact),
+                SectionKey.FavoriteIconKey to listOf(favoriteContact),
+                SectionKey.LetterKey('R') to listOf(regularContact),
             )
-        setContent(contactSections)
+        setContent(contactSections, numberOfFavoriteContacts = 1)
 
         // Drag to the top, which should correspond to the favorite contact
         startScrubberDragAt(0.0f)
 
-        assertThat(controller.labelSectionKey).isEqualTo(FavoriteSection)
+        assertThat(controller.labelSectionKey).isEqualTo(SectionKey.FavoriteIconKey)
     }
 
     @Test
     fun labelSectionKey_showsLetter_whenDraggingOverLetterContact() {
         val contactA =
             ContactTestDataFactory.createDisplayNameContact(id = 1, displayName = "Alice")
-        val contactSections: Map<SectionKey, List<Contact>> =
-            sortedMapOf(SectionKey.COMPARATOR, LetterKey('A') to listOf(contactA))
+        val contactSections: SortedMap<SectionKey, List<Contact>> =
+            sortedMapOf(SectionKey.LetterKey('A') to listOf(contactA))
         setContent(contactSections)
 
         startScrubberDragAt(0.0f)
 
         val label = controller.labelSectionKey
-        assertThat((label as LetterKey).letter).isEqualTo('A')
+        assertThat((label as SectionKey.LetterKey).letter).isEqualTo('A')
     }
 
     @Test
     fun labelSectionKey_showsEmojiIcon_whenDraggingOverNonLetterContact() {
         val emojiContact =
             ContactTestDataFactory.createDisplayNameContact(id = 1, displayName = "#Hash")
-        val contactSections: Map<SectionKey, List<Contact>> =
-            sortedMapOf(SectionKey.COMPARATOR, EmojiSection to listOf(emojiContact))
+        val contactSections: SortedMap<SectionKey, List<Contact>> =
+            sortedMapOf(SectionKey.EmojiIconKey to listOf(emojiContact))
         setContent(contactSections)
 
         startScrubberDragAt(0.0f)
 
-        assertThat(controller.labelSectionKey).isEqualTo(EmojiSection)
+        assertThat(controller.labelSectionKey).isEqualTo(SectionKey.EmojiIconKey)
     }
 
     /** Simulates a complete drag gesture on the scrubber. */

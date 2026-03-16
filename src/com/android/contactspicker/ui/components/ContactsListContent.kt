@@ -71,7 +71,7 @@ fun ContactsListContent(
 
         is ContactsListState.Success ->
             ContactsPickerBody(
-                availableContactsGroups = uiState.availableContactsGroups,
+                contacts = uiState.availableContacts,
                 callingAppName = uiState.callingAppName,
                 showPrivacyBanner = uiState.showPrivacyBanner,
                 selectedContacts = uiState.selectedContacts,

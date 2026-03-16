@@ -66,7 +66,6 @@ import dagger.hilt.android.testing.BindValue
 import dagger.hilt.android.testing.HiltAndroidRule
 import dagger.hilt.android.testing.HiltAndroidTest
 import dagger.hilt.android.testing.UninstallModules
-import java.util.TreeMap
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
@@ -142,8 +141,8 @@ class ContactsPickerActivityTest {
         val successState =
             MutableStateFlow(
                 ContactsListState.Success(
-                    availableContactsGroups = TreeMap(),
-                    selectedContacts = emptyContactsSelection(),
+                    emptyList(),
+                    emptyContactsSelection(),
                     isMultiSelectEnabled = false,
                     callingAppName = null,
                     requestedMimeTypes = emptyList(),
@@ -290,8 +289,7 @@ class ContactsPickerActivityTest {
         val successStateSingleSelect =
             MutableStateFlow(
                 ContactsListState.Success(
-                    availableContactsGroups =
-                        IntegrationTestContactData.groupContactsForTest(listOf(testContact)),
+                    availableContacts = listOf(testContact),
                     selectedContacts = contactsSelectionOf(testContact.id, setOf(testContact.id)),
                     isMultiSelectEnabled = false,
                     callingAppName = null,
@@ -342,8 +340,7 @@ class ContactsPickerActivityTest {
         val successStateMultiSelect =
             MutableStateFlow(
                 ContactsListState.Success(
-                    availableContactsGroups =
-                        IntegrationTestContactData.groupContactsForTest(listOf(testContact)),
+                    availableContacts = listOf(testContact),
                     selectedContacts = contactsSelectionOf(testContact.id, setOf(testContact.id)),
                     isMultiSelectEnabled = true,
                     callingAppName = null,
@@ -398,8 +395,7 @@ class ContactsPickerActivityTest {
         val successStateSingleSelect =
             MutableStateFlow(
                 ContactsListState.Success(
-                    availableContactsGroups =
-                        IntegrationTestContactData.groupContactsForTest(listOf(testContact)),
+                    availableContacts = listOf(testContact),
                     selectedContacts = contactsSelectionOf(testContact.id, setOf(testContact.id)),
                     isMultiSelectEnabled = false,
                     callingAppName = null,
@@ -465,8 +461,7 @@ class ContactsPickerActivityTest {
         val successState =
             MutableStateFlow(
                 ContactsListState.Success(
-                    availableContactsGroups =
-                        IntegrationTestContactData.groupContactsForTest(listOf(testContact)),
+                    availableContacts = listOf(testContact),
                     selectedContacts = emptyContactsSelection(),
                     isMultiSelectEnabled = false,
                     callingAppName = testAppName,
@@ -498,8 +493,7 @@ class ContactsPickerActivityTest {
         val successState =
             MutableStateFlow(
                 ContactsListState.Success(
-                    availableContactsGroups =
-                        IntegrationTestContactData.groupContactsForTest(listOf(testContact)),
+                    availableContacts = listOf(testContact),
                     selectedContacts = emptyContactsSelection(),
                     isMultiSelectEnabled = false,
                     callingAppName = testAppName,

@@ -79,8 +79,7 @@ class ContactsListContentTest {
             ContactsListContent(
                 uiState =
                     ContactsListState.Success(
-                        availableContactsGroups =
-                            ContactTestDataFactory.groupContactsForTest(listOf(testContact)),
+                        availableContacts = listOf(testContact),
                         selectedContacts = emptyContactsSelection(),
                         isMultiSelectEnabled = false,
                         callingAppName = null,
