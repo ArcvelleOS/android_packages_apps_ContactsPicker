@@ -37,6 +37,7 @@ import com.android.contactspicker.ContactsListState
 import com.android.contactspicker.ContactsPreviewState
 import com.android.contactspicker.ContactsUiState
 import com.android.contactspicker.Flags.FLAG_ENABLE_ACTION_PICK_TAKEOVER_IN_DROIDFOOD
+import com.android.contactspicker.PrivacyDetailsState
 import com.android.contactspicker.R
 import com.android.contactspicker.SearchState
 import com.android.contactspicker.config.ContactsPickerAction
@@ -480,6 +481,16 @@ class ContactsViewModelTest {
                 useSystemContactsPicker = false,
                 matchAllRequestedMimeTypes = false,
             )
+    }
+
+    @Test
+    fun handleIntent_whenContactsLoad_callsLoggerInitialContactsLoaded() = runTest {
+        val contact = ContactTestDataFactory.GENERIC_EMAIL_CONTACT
+        initializeViewModelForActionPickContacts(listOf(contact), listOf(Email.CONTENT_ITEM_TYPE))
+
+        assertThat(viewModel.uiState.value).isInstanceOf(ContactsListState.Success::class.java)
+        verify(mockContactsPickerLogger).allContactsLoadingStarted()
+        verify(mockContactsPickerLogger).allContactsLoadingFinished()
     }
 
     @Test
@@ -1345,6 +1356,53 @@ class ContactsViewModelTest {
     }
 
     @Test
+    fun onPrivacyDetailsClicked_updatesStateToPrivacyDetails() = runTest {
+        val contact = ContactTestDataFactory.GENERIC_DISPLAY_NAME_CONTACT
+        initializeViewModelForActionPickContacts(listOf(contact), listOf(Phone.CONTENT_ITEM_TYPE))
+
+        viewModel.onPrivacyDetailsClicked()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertThat(state).isInstanceOf(PrivacyDetailsState::class.java)
+        val privacyState = state as PrivacyDetailsState
+        assertThat(privacyState.callingAppName).isEqualTo(TEST_APP_NAME)
+        assertThat(privacyState.requestedMimeTypes).containsExactly(MimeType.PHONE)
+    }
+
+    @Test
+    fun onBackFromPrivacyDetails_revertsToPreviousState() = runTest {
+        val contact = ContactTestDataFactory.GENERIC_DISPLAY_NAME_CONTACT
+        initializeViewModelForLegacyActionPick(listOf(contact))
+        val previousSuccessState = viewModel.uiState.value
+
+        viewModel.onPrivacyDetailsClicked()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertThat(viewModel.uiState.value).isInstanceOf(PrivacyDetailsState::class.java)
+
+        viewModel.onBackFromPrivacyDetails()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertThat(state).isInstanceOf(ContactsListState.Success::class.java)
+        assertThat(state).isEqualTo(previousSuccessState)
+    }
+
+    @Test
+    fun onPrivacyDetailsClicked_inLoadingState_throwsException() = runTest {
+        // The ViewModel starts in the Loading state by default.
+        // It should throw an IllegalArgumentException because of the require() check.
+        assertFailsWith<IllegalArgumentException> { viewModel.onPrivacyDetailsClicked() }
+    }
+
+    @Test
+    fun onBackFromPrivacyDetails_inInvalidState_throwsException() = runTest {
+        // The ViewModel starts in the Loading state, not PrivacyDetailsState.
+        // Calling onBackFromPrivacyDetails here should throw an exception.
+        assertFailsWith<IllegalArgumentException> { viewModel.onBackFromPrivacyDetails() }
+    }
+
+    @Test
     fun onBackFromPreview_updatesStateToList() = runTest {
         val contact = ContactTestDataFactory.GENERIC_EMAIL_CONTACT
         initializeViewModelForLegacyActionPick(listOf(contact))
@@ -1835,7 +1893,7 @@ class ContactsViewModelTest {
     }
 
     @Test
-    fun onProfileClicked_pausedProfile_undefinedReason_showsGenericDialog() = runTest {
+    fun onProfileClicked_pausedProfile_undefinedReason_showsNoDialog() = runTest {
         initializeViewModelForActionPickContacts(emptyList(), listOf(Email.CONTENT_ITEM_TYPE))
 
         val undefinedPausedProfile =
@@ -1844,7 +1902,7 @@ class ContactsViewModelTest {
                 userIdToQueryContacts = 11,
                 userType = UserType.WORK,
                 switchableInfo = SwitchableProfileInfo("Work", null),
-                pausedInfo = PausedProfileInfo(PausedReason.UNDEFINED),
+                pausedInfo = PausedProfileInfo(PausedReason.UNKNOWN_REASON),
             )
 
         viewModel.onProfileClicked(undefinedPausedProfile)
@@ -1852,9 +1910,28 @@ class ContactsViewModelTest {
 
         val successState = viewModel.currentSuccessUserState
         val dialogData = successState.profileBlockedDialogData
-        assertThat(dialogData).isNotNull()
 
-        assertThat(dialogData?.title).isEqualTo(PAUSED_WORK_APPS_TITLE)
+        assertThat(dialogData).isNull()
+    }
+
+    @Test
+    fun onProfileClicked_pausedNonWorkProfile_showsNoDialog() = runTest {
+        initializeViewModelForActionPickContacts(emptyList(), listOf(Email.CONTENT_ITEM_TYPE))
+
+        val pausedPersonalProfile =
+            UserProfile(
+                userId = USER_ID_PERSONAL,
+                userIdToQueryContacts = USER_ID_PERSONAL,
+                userType = UserType.PERSONAL,
+                switchableInfo = SwitchableProfileInfo("Personal", null),
+                pausedInfo = PausedProfileInfo(PausedReason.QUIET_MODE),
+            )
+
+        viewModel.onProfileClicked(pausedPersonalProfile)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        val successState = viewModel.currentSuccessUserState
+        assertThat(successState.profileBlockedDialogData).isNull()
     }
 
     @Test
