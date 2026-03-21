@@ -16,9 +16,11 @@
 
 package com.android.contactspicker.testdata
 
+import android.provider.ContactsContract
 import com.android.contactspicker.data.model.Contact
 import com.android.contactspicker.data.model.DisplayNameContact
 import com.android.contactspicker.data.model.SectionKey
+import com.android.contactspicker.viewmodel.ContactGroupingMetadata
 import com.android.contactspicker.viewmodel.ContactsGrouper
 
 /** Test data for integration tests. */
@@ -28,12 +30,16 @@ object IntegrationTestContactData {
         DisplayNameContact(
             id = 1,
             displayName = "Alice Wonderland",
+            displayNameSource = ContactsContract.DisplayNameSources.STRUCTURED_NAME,
             isFavorite = false,
             profilePictureUri = null,
             lookupKey = "key_1",
         )
 
-    fun groupContactsForTest(contacts: List<Contact>): Map<SectionKey, List<Contact>> {
-        return ContactsGrouper(contacts).availableContactsGroups
+    fun groupContactsForTest(
+        contacts: List<Contact>,
+        metadata: ContactGroupingMetadata = ContactGroupingMetadata.EMPTY,
+    ): Map<SectionKey, List<Contact>> {
+        return ContactsGrouper(contacts, metadata).availableContactsGroups
     }
 }
