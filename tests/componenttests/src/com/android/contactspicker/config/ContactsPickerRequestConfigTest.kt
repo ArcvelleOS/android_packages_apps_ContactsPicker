@@ -27,6 +27,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.contactspicker.data.model.MimeType
 import com.google.common.truth.Truth.assertThat
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import org.junit.runner.RunWith
 
 @RequiresFlagsEnabled(Flags.FLAG_ENABLE_SYSTEM_CONTACTS_PICKER)
@@ -34,56 +35,36 @@ import org.junit.runner.RunWith
 class ContactsPickerRequestConfigTest {
 
     @Test
-    fun create_unsupportedAction_returnsError() {
-        val result =
+    fun create_unsupportedAction_throwsException() {
+        assertFailsWith<IllegalArgumentException> {
             ContactsPickerRequestConfig.create(
                 intentAction = "android.intent.action.VIEW",
                 intentType = Contacts.CONTENT_TYPE,
                 intentExtras = null,
             )
-        assertThat(result).isInstanceOf(ContactsPickerConfigError::class.java)
-        assertThat((result as ContactsPickerConfigError).errorType)
-            .isEqualTo(ConfigErrorType.UNSUPPORTED_ACTION)
+        }
     }
 
     @Test
-    fun create_nullAction_returnsError() {
-        val result =
+    fun create_nullAction_throwsException() {
+        assertFailsWith<IllegalArgumentException> {
             ContactsPickerRequestConfig.create(
                 intentAction = null,
                 intentType = Contacts.CONTENT_TYPE,
                 intentExtras = null,
             )
-        assertThat(result).isInstanceOf(ContactsPickerConfigError::class.java)
-        assertThat((result as ContactsPickerConfigError).errorType)
-            .isEqualTo(ConfigErrorType.UNSUPPORTED_ACTION)
-    }
-
-    @Test
-    fun create_actionPick_unsupportedType_returnsError() {
-        val result =
-            ContactsPickerRequestConfig.create(
-                intentAction = Intent.ACTION_PICK,
-                intentType = "vnd.android.cursor.dir/unsupported",
-                intentExtras = null,
-            )
-        assertThat(result).isInstanceOf(ContactsPickerConfigError::class.java)
-        val error = result as ContactsPickerConfigError
-        assertThat(error.errorType).isEqualTo(ConfigErrorType.UNSUPPORTED_MIME_TYPE)
-        assertThat(error.parsedAction).isEqualTo(ContactsPickerAction.ACTION_PICK)
+        }
     }
 
     @Test
     fun create_actionPick_emailType() {
-        val result =
+        val config =
             ContactsPickerRequestConfig.create(
                 intentAction = Intent.ACTION_PICK,
                 intentType = Email.CONTENT_TYPE,
                 intentExtras = null,
             )
 
-        assertThat(result).isInstanceOf(ContactsPickerRequestConfig::class.java)
-        val config = result as ContactsPickerRequestConfig
         assertThat(config.pickerAction).isEqualTo(ContactsPickerAction.ACTION_PICK)
         assertThat(config.queryMode).isEqualTo(ContactsQueryMode.EmailsOnly)
         assertThat(config.isMultiSelectEnabled).isFalse()
@@ -94,15 +75,13 @@ class ContactsPickerRequestConfigTest {
     @Test
     fun create_actionPick_phoneType_multiSelect() {
         val extras = Bundle().apply { putBoolean(Intent.EXTRA_ALLOW_MULTIPLE, true) }
-        val result =
+        val config =
             ContactsPickerRequestConfig.create(
                 intentAction = Intent.ACTION_PICK,
                 intentType = Phone.CONTENT_TYPE,
                 intentExtras = extras,
             )
 
-        assertThat(result).isInstanceOf(ContactsPickerRequestConfig::class.java)
-        val config = result as ContactsPickerRequestConfig
         assertThat(config.pickerAction).isEqualTo(ContactsPickerAction.ACTION_PICK)
         assertThat(config.queryMode).isEqualTo(ContactsQueryMode.PhonesOnly)
         assertThat(config.isMultiSelectEnabled).isTrue()
@@ -113,45 +92,49 @@ class ContactsPickerRequestConfigTest {
 
     @Test
     fun create_actionPick_contactType() {
-        val result =
+        val config =
             ContactsPickerRequestConfig.create(
                 intentAction = Intent.ACTION_PICK,
                 intentType = Contacts.CONTENT_TYPE,
                 intentExtras = null,
             )
 
-        assertThat(result).isInstanceOf(ContactsPickerRequestConfig::class.java)
-        val config = result as ContactsPickerRequestConfig
         assertThat(config.pickerAction).isEqualTo(ContactsPickerAction.ACTION_PICK)
         assertThat(config.queryMode).isEqualTo(ContactsQueryMode.DisplayNamesOnly)
         assertThat(config.maxSelectionLimit).isEqualTo(1)
     }
 
     @Test
-    fun create_actionPick_nullType_returnsError() {
-        val result =
+    fun create_actionPick_unsupportedType_throwsException() {
+        assertFailsWith<IllegalArgumentException> {
+            ContactsPickerRequestConfig.create(
+                intentAction = Intent.ACTION_PICK,
+                intentType = "vnd.android.cursor.dir/unsupported",
+                intentExtras = null,
+            )
+        }
+    }
+
+    @Test
+    fun create_actionPick_nullType_throwsException() {
+        assertFailsWith<IllegalArgumentException> {
             ContactsPickerRequestConfig.create(
                 intentAction = Intent.ACTION_PICK,
                 intentType = null,
                 intentExtras = null,
             )
-
-        assertThat(result).isInstanceOf(ContactsPickerConfigError::class.java)
-        assertThat((result as ContactsPickerConfigError).errorType)
-            .isEqualTo(ConfigErrorType.UNSUPPORTED_MIME_TYPE)
+        }
     }
 
     @Test
-    fun create_actionPickContacts_missingMimeTypes_returnsError() {
-        val result =
+    fun create_actionPickContacts_missingMimeTypes_throwsException() {
+        assertFailsWith<IllegalArgumentException> {
             ContactsPickerRequestConfig.create(
                 intentAction = ContactsPickerSessionContract.ACTION_PICK_CONTACTS,
                 intentType = null,
                 intentExtras = null,
             )
-        assertThat(result).isInstanceOf(ContactsPickerConfigError::class.java)
-        assertThat((result as ContactsPickerConfigError).errorType)
-            .isEqualTo(ConfigErrorType.EMPTY_REQUESTED_MIME_TYPE)
+        }
     }
 
     @Test
@@ -165,15 +148,13 @@ class ContactsPickerRequestConfigTest {
                 )
             }
 
-        val result =
+        val config =
             ContactsPickerRequestConfig.create(
                 intentAction = ContactsPickerSessionContract.ACTION_PICK_CONTACTS,
                 intentType = null,
                 intentExtras = extras,
             )
 
-        assertThat(result).isInstanceOf(ContactsPickerRequestConfig::class.java)
-        val config = result as ContactsPickerRequestConfig
         assertThat(config.pickerAction).isEqualTo(ContactsPickerAction.ACTION_PICK_CONTACTS)
         assertThat(config.queryMode).isEqualTo(ContactsQueryMode.EmailsOnly)
         assertThat(config.requestedMimeTypes).isEqualTo(listOf(MimeType.EMAIL))
@@ -190,16 +171,14 @@ class ContactsPickerRequestConfigTest {
                 )
             }
 
-        val result =
+        val config =
             ContactsPickerRequestConfig.create(
                 intentAction = ContactsPickerSessionContract.ACTION_PICK_CONTACTS,
                 intentType = null,
                 intentExtras = extras,
             )
 
-        assertThat(result).isInstanceOf(ContactsPickerRequestConfig::class.java)
-        assertThat((result as ContactsPickerRequestConfig).queryMode)
-            .isEqualTo(ContactsQueryMode.PhonesOnly)
+        assertThat(config.queryMode).isEqualTo(ContactsQueryMode.PhonesOnly)
     }
 
     @Test
@@ -213,15 +192,13 @@ class ContactsPickerRequestConfigTest {
                 )
             }
 
-        val result =
+        val config =
             ContactsPickerRequestConfig.create(
                 intentAction = ContactsPickerSessionContract.ACTION_PICK_CONTACTS,
                 intentType = null,
                 intentExtras = extras,
             )
 
-        assertThat(result).isInstanceOf(ContactsPickerRequestConfig::class.java)
-        val config = result as ContactsPickerRequestConfig
         assertThat(config.pickerAction).isEqualTo(ContactsPickerAction.ACTION_PICK_CONTACTS)
         assertThat(config.queryMode).isEqualTo(ContactsQueryMode.Custom(mimeTypes, false))
         assertThat(config.requestedMimeTypes).isEqualTo(mimeTypes)
@@ -238,16 +215,14 @@ class ContactsPickerRequestConfigTest {
                 )
             }
 
-        val result =
+        val config =
             ContactsPickerRequestConfig.create(
                 intentAction = ContactsPickerSessionContract.ACTION_PICK_CONTACTS,
                 intentType = null,
                 intentExtras = extras,
             )
 
-        assertThat(result).isInstanceOf(ContactsPickerRequestConfig::class.java)
-        assertThat((result as ContactsPickerRequestConfig).queryMode)
-            .isEqualTo(ContactsQueryMode.Custom(mimeTypes, false))
+        assertThat(config.queryMode).isEqualTo(ContactsQueryMode.Custom(mimeTypes, false))
     }
 
     @Test
@@ -265,15 +240,13 @@ class ContactsPickerRequestConfigTest {
                 )
             }
 
-        val result =
+        val config =
             ContactsPickerRequestConfig.create(
                 intentAction = ContactsPickerSessionContract.ACTION_PICK_CONTACTS,
                 intentType = null,
                 intentExtras = extras,
             )
 
-        assertThat(result).isInstanceOf(ContactsPickerRequestConfig::class.java)
-        val config = result as ContactsPickerRequestConfig
         assertThat(config.matchAllRequestedMimeTypes).isTrue()
         assertThat(config.queryMode).isEqualTo(ContactsQueryMode.Custom(mimeTypes, true))
     }
@@ -295,48 +268,19 @@ class ContactsPickerRequestConfigTest {
                 )
             }
 
-        val result =
+        val config =
             ContactsPickerRequestConfig.create(
                 intentAction = ContactsPickerSessionContract.ACTION_PICK_CONTACTS,
                 intentType = null,
                 intentExtras = extras,
             )
 
-        assertThat(result).isInstanceOf(ContactsPickerRequestConfig::class.java)
-        val config = result as ContactsPickerRequestConfig
         assertThat(config.isMultiSelectEnabled).isTrue()
         assertThat(config.maxSelectionLimit).isEqualTo(customLimit)
     }
 
     @Test
-    fun create_actionPickContacts_singleMimeType_matchAll_true() {
-        val mimeTypes = arrayListOf(Email.CONTENT_ITEM_TYPE)
-        val extras =
-            Bundle().apply {
-                putStringArrayList(
-                    ContactsPickerSessionContract.EXTRA_PICK_CONTACTS_REQUESTED_DATA_FIELDS,
-                    mimeTypes,
-                )
-                putBoolean(
-                    ContactsPickerSessionContract.EXTRA_PICK_CONTACTS_MATCH_ALL_DATA_FIELDS,
-                    true,
-                )
-            }
-
-        val result =
-            ContactsPickerRequestConfig.create(
-                intentAction = ContactsPickerSessionContract.ACTION_PICK_CONTACTS,
-                intentType = null,
-                intentExtras = extras,
-            )
-
-        assertThat(result).isInstanceOf(ContactsPickerRequestConfig::class.java)
-        val config = result as ContactsPickerRequestConfig
-        assertThat(config.matchAllRequestedMimeTypes).isTrue()
-    }
-
-    @Test
-    fun create_actionPickContacts_multiSelectWithLimitTooHigh_returnsError() {
+    fun create_actionPickContacts_multiSelectWithLimitTooHigh_throwsException() {
         val mimes = ArrayList(listOf(Email.CONTENT_ITEM_TYPE))
         val extras =
             Bundle().apply {
@@ -351,23 +295,17 @@ class ContactsPickerRequestConfigTest {
                 )
             }
 
-        val result =
+        assertFailsWith<IllegalArgumentException> {
             ContactsPickerRequestConfig.create(
                 intentAction = ContactsPickerSessionContract.ACTION_PICK_CONTACTS,
                 intentType = null,
                 intentExtras = extras,
             )
-
-        assertThat(result).isInstanceOf(ContactsPickerConfigError::class.java)
-        val error = result as ContactsPickerConfigError
-        assertThat(error.errorType).isEqualTo(ConfigErrorType.UNSUPPORTED_SELECTION_LIMIT)
-        // Verify we salvaged partial data:
-        assertThat(error.parsedAction).isEqualTo(ContactsPickerAction.ACTION_PICK_CONTACTS)
-        assertThat(error.parsedMimeTypes).isEqualTo(listOf(MimeType.EMAIL))
+        }
     }
 
     @Test
-    fun create_actionPickContacts_multiSelectWithLimitZero_returnsError() {
+    fun create_actionPickContacts_multiSelectWithLimitZero_throwsException() {
         val mimes = ArrayList(listOf(Email.CONTENT_ITEM_TYPE))
         val extras =
             Bundle().apply {
@@ -379,18 +317,13 @@ class ContactsPickerRequestConfigTest {
                 )
             }
 
-        val result =
+        assertFailsWith<IllegalArgumentException> {
             ContactsPickerRequestConfig.create(
                 intentAction = ContactsPickerSessionContract.ACTION_PICK_CONTACTS,
                 intentType = null,
                 intentExtras = extras,
             )
-
-        assertThat(result).isInstanceOf(ContactsPickerConfigError::class.java)
-        val error = result as ContactsPickerConfigError
-        assertThat(error.errorType).isEqualTo(ConfigErrorType.UNSUPPORTED_SELECTION_LIMIT)
-        assertThat(error.parsedAction).isEqualTo(ContactsPickerAction.ACTION_PICK_CONTACTS)
-        assertThat(error.parsedMimeTypes).isEqualTo(listOf(MimeType.EMAIL))
+        }
     }
 
     @Test
@@ -404,15 +337,13 @@ class ContactsPickerRequestConfigTest {
                 )
             }
 
-        val result =
+        val config =
             ContactsPickerRequestConfig.create(
                 intentAction = ContactsPickerSessionContract.ACTION_PICK_CONTACTS,
                 intentType = null,
                 intentExtras = extras,
             )
 
-        assertThat(result).isInstanceOf(ContactsPickerRequestConfig::class.java)
-        val config = result as ContactsPickerRequestConfig
         assertThat(config.matchAllRequestedMimeTypes).isFalse()
         assertThat(config.queryMode).isEqualTo(ContactsQueryMode.Custom(mimeTypes, false))
     }

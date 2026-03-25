@@ -44,8 +44,7 @@ fun ContactsPickerScreen(
     userState: PickerUserState,
     onToggleContactSelection: (Contact, SelectionSource) -> Unit,
     onToggleEntrySelection: (Long, Long, SelectionSource) -> Unit,
-    onPrivacyDetailsBannerClicked: () -> Unit,
-    onPrivacyDetailsOverflowMenuClicked: () -> Unit,
+    onPrivacyDetailsClicked: () -> Unit,
     onBackFromPrivacyDetails: () -> Unit,
     onPrivacyBannerDismissRequest: () -> Unit,
     onExpandRequest: () -> Unit,
@@ -92,14 +91,14 @@ fun ContactsPickerScreen(
                     onToggleContactSelection = onToggleContactSelection,
                     onToggleEntrySelection = onToggleEntrySelection,
                     onExitSearch = onExitSearch,
-                    onPrivacyDetailsOverflowMenuClicked = onPrivacyDetailsOverflowMenuClicked,
+                    onPrivacyDetailsClicked = onPrivacyDetailsClicked,
                     onProfileClicked = onProfileClicked,
                 )
 
                 if (uiStateValue is ContactsListState) {
                     ContactsListContent(
                         uiState = uiStateValue,
-                        onPrivacyBannerMoreDetails = onPrivacyDetailsBannerClicked,
+                        onPrivacyBannerMoreDetails = onPrivacyDetailsClicked,
                         onPrivacyBannerDismissRequest = onPrivacyBannerDismissRequest,
                         onToggleContactSelection = onToggleContactSelection,
                         onToggleEntrySelection = onToggleEntrySelection,

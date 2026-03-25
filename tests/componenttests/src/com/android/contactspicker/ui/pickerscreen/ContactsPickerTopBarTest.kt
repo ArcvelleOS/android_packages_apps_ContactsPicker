@@ -101,9 +101,7 @@ class ContactsPickerTopBarTest {
     @Test
     fun clickOverflowMenuItem_invokesCallback() {
         var privacyDetailsClicked = false
-        setContactsPickerTopBarContent(
-            onPrivacyDetailsOverflowMenuClicked = { privacyDetailsClicked = true }
-        )
+        setContactsPickerTopBarContent(onShowPrivacyDetailsClick = { privacyDetailsClicked = true })
 
         composeTestRule
             .onNodeWithTag(CONTACTS_PICKER_TOP_BAR_MORE_VERTICAL_ICON_TEST_TAG)
@@ -194,7 +192,7 @@ class ContactsPickerTopBarTest {
 
     private fun setContactsPickerTopBarContent(
         userState: PickerUserState = PickerUserState.Loading,
-        onPrivacyDetailsOverflowMenuClicked: () -> Unit = {},
+        onShowPrivacyDetailsClick: () -> Unit = {},
     ) {
         composeTestRule.setContent {
             ContactsPickerTopBar(
@@ -205,7 +203,7 @@ class ContactsPickerTopBarTest {
                 onToggleContactSelection = { _, _ -> },
                 onToggleEntrySelection = { _, _, _ -> },
                 onExitSearch = {},
-                onPrivacyDetailsOverflowMenuClicked = onPrivacyDetailsOverflowMenuClicked,
+                onPrivacyDetailsClicked = onShowPrivacyDetailsClick,
                 onProfileClicked = {},
             )
         }

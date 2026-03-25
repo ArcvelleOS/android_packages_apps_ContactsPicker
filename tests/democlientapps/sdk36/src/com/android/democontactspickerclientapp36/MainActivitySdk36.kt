@@ -22,19 +22,18 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
-import androidx.activity.result.ActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,14 +47,12 @@ import com.android.democontactspickerclientapp.CommonOptionsWithSystemPickerDisa
 import com.android.democontactspickerclientapp.LaunchPickerButton
 import com.android.democontactspickerclientapp.LegacyActionPickConfiguration
 import com.android.democontactspickerclientapp.LegacyDemoConfigState
+import com.android.democontactspickerclientapp.ResultDisplay
 import com.android.democontactspickerclientapp.ScreenTitle
 import com.android.democontactspickerclientapp.SwitchOption
-import com.android.democontactspickerclientapp.actionPickResultDisplay
 import com.android.democontactspickerclientapp.buildLegacyPickerIntent
 import com.android.democontactspickerclientapp.buildLegacyPickerIntentWithSystemPickerDisabled
 import com.android.democontactspickerclientapp.handlePickerResult
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 class MainActivitySdk36 : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,110 +72,78 @@ private fun Sdk36Screen(targetSdk: Int) {
     var selectionLimit by remember { mutableStateOf(0) }
     val context = LocalContext.current
 
-    var activityResult by remember { mutableStateOf<ActivityResult?>(null) }
-    var isLoading by remember { mutableStateOf(false) }
-
     val pickerLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.StartActivityForResult()
         ) { result ->
-            // save result for async processing
-            activityResult = result
-        }
-
-    // async data parsing
-    LaunchedEffect(activityResult) {
-        val result = activityResult
-        if (result != null) {
-            isLoading = true
-            val pickerResult =
-                withContext(Dispatchers.IO) {
-                    handlePickerResult(context, result, legacyConfig.legacyPickerType)
-                }
+            // Handle picker result to get structured data
+            val pickerResult = handlePickerResult(context, result, legacyConfig.legacyPickerType)
+            // Update state with structured results and status text
             legacyConfig = legacyConfig.copy(pickerResult = pickerResult)
-            isLoading = false
         }
-    }
 
     Box(Modifier.systemBarsPadding()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
+        Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            item {
-                ScreenTitle(targetSdk = targetSdk)
-                Spacer(modifier = Modifier.height(20.dp))
+            ScreenTitle(targetSdk = targetSdk)
+            Spacer(modifier = Modifier.height(20.dp))
 
-                LegacyActionPickConfiguration(legacyConfig) { newConfig ->
-                    legacyConfig = newConfig
-                }
-                Spacer(modifier = Modifier.height(20.dp))
+            LegacyActionPickConfiguration(legacyConfig) { newConfig -> legacyConfig = newConfig }
+            Spacer(modifier = Modifier.height(20.dp))
 
-                if (android.content.flags.Flags.enableSystemContactsPicker()) {
-                    CommonOptions(
-                        allowMultiple = allowMultiple,
-                        onAllowMultipleChange = { allowMultiple = it },
-                        overrideSelectionLimit = overrideSelectionLimit,
-                        onOverrideSelectionLimitChange = { overrideSelectionLimit = it },
-                        selectionLimit = selectionLimit,
-                        onSelectionLimitChange = { selectionLimit = it },
-                    )
-                    SwitchOption(
-                        title = "Use System Picker",
-                        checked = useSystemPicker,
-                        onCheckedChange = { useSystemPicker = it },
-                    )
-                } else {
-                    CommonOptionsWithSystemPickerDisabled(
-                        allowMultiple = allowMultiple,
-                        onAllowMultipleChange = { allowMultiple = it },
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                LaunchPickerButton {
-                    val intent =
-                        if (android.content.flags.Flags.enableSystemContactsPicker())
-                            buildLegacyPickerIntent(
-                                legacyConfig,
-                                allowMultiple,
-                                useSystemPicker,
-                                overrideSelectionLimit,
-                                selectionLimit,
-                            )
-                        else
-                            buildLegacyPickerIntentWithSystemPickerDisabled(
-                                legacyConfig,
-                                allowMultiple,
-                            )
-
-                    try {
-                        pickerLauncher.launch(intent)
-                    } catch (_: ActivityNotFoundException) {
-                        Toast.makeText(
-                                context,
-                                "No handler for intent ${intent.action} found.",
-                                Toast.LENGTH_SHORT,
-                            )
-                            .show()
-                    }
-                }
-                Spacer(modifier = Modifier.height(20.dp))
+            if (android.content.flags.Flags.enableSystemContactsPicker()) {
+                CommonOptions(
+                    allowMultiple = allowMultiple,
+                    onAllowMultipleChange = { allowMultiple = it },
+                    overrideSelectionLimit = overrideSelectionLimit,
+                    onOverrideSelectionLimitChange = { overrideSelectionLimit = it },
+                    selectionLimit = selectionLimit,
+                    onSelectionLimitChange = { selectionLimit = it },
+                )
+                SwitchOption(
+                    title = "Use System Picker",
+                    checked = useSystemPicker,
+                    onCheckedChange = { useSystemPicker = it },
+                )
+            } else {
+                CommonOptionsWithSystemPickerDisabled(
+                    allowMultiple = allowMultiple,
+                    onAllowMultipleChange = { allowMultiple = it },
+                )
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            LaunchPickerButton {
+                val intent =
+                    if (android.content.flags.Flags.enableSystemContactsPicker())
+                        buildLegacyPickerIntent(
+                            legacyConfig,
+                            allowMultiple,
+                            useSystemPicker,
+                            overrideSelectionLimit,
+                            selectionLimit,
+                        )
+                    else
+                        buildLegacyPickerIntentWithSystemPickerDisabled(legacyConfig, allowMultiple)
+
+                try {
+                    pickerLauncher.launch(intent)
+                } catch (_: ActivityNotFoundException) {
+                    Toast.makeText(
+                            context,
+                            "No handler for intent ${intent.action} found.",
+                            Toast.LENGTH_SHORT,
+                        )
+                        .show()
+                }
+            }
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Pass status and structured results to the display composable
-            if (isLoading) {
-                item {
-                    Text(
-                        text = "Loading data...",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            } else {
-                actionPickResultDisplay(legacyConfig.pickerResult)
-            }
+            ResultDisplay(legacyConfig.pickerResult)
         }
     }
 }

@@ -24,7 +24,6 @@ import android.test.mock.MockContentResolver
 import com.android.bedstead.nene.TestApis
 import com.android.contactspicker.fakes.FakeContentProvider
 import com.google.common.truth.Truth.assertThat
-import java.lang.IllegalArgumentException
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test

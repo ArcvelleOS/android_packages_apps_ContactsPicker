@@ -70,6 +70,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.hideFromAccessibility
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -454,11 +455,7 @@ private fun SelectableAvatar(
         contentAlignment = Alignment.Center,
     ) {
         if (!isSelected) {
-            Avatar(
-                displayName = contact.displayName,
-                lookupKey = contact.lookupKey,
-                profilePictureUri = contact.profilePictureUri,
-            )
+            Avatar(displayName = contact.displayName, profilePictureUri = contact.profilePictureUri)
         }
         AnimatedVisibility(
             visible = isSelected,

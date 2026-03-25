@@ -31,22 +31,20 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
 /** Structured result data for display. */
-data class DataRow(
-    val label: String,
-    val valueText: String,
-    val photoBytes: ByteArray? = null,
-    val metadata: String = "",
+data class ContactResult(
+    val contactName: String,
+    val detail: String, // Email address, phone number, or contact ID
+    val detailLabel: String, // "Email", "Phone", or "Contact ID"
+    val uri: String,
 )
 
-data class FlatRow(val contactName: String, val row: DataRow)
-
 /** A data class holding the result of the picker. */
-data class PickerResult(val statusText: String, val rows: List<FlatRow> = emptyList())
+data class PickerResult(val statusText: String, val contacts: List<ContactResult>)
 
 /** A data class holding only the state relevant to the legacy ACTION_PICK. */
 data class LegacyDemoConfigState(
     val legacyPickerType: LegacyPickerType = LegacyPickerType.EMAIL,
-    val pickerResult: PickerResult = PickerResult("Picker result will be shown here"),
+    val pickerResult: PickerResult = PickerResult("Picker result will be shown here", emptyList()),
 )
 
 enum class LegacyPickerType(val label: String) {

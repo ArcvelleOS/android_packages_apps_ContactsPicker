@@ -15,13 +15,11 @@
  */
 package com.android.contactspicker.ui.scrubber
 
-import android.util.Log
 import androidx.annotation.FloatRange
 import com.android.contactspicker.data.model.Contact
 import com.android.contactspicker.data.model.SectionKey
 import kotlin.math.roundToInt
 
-private const val TAG = "ScrubberPositionToListIndexMapper"
 private const val STICKY_HEADER_OFFSET = 1
 private const val PRIVACY_BANNER_OFFSET = 1
 
@@ -42,10 +40,6 @@ internal class ScrubberPositionToListIndexMapper(
 ) {
     /** The total number of contacts across all sections. */
     private val contactCount: Int
-
-    /** Stores the [SectionKey] for each section. */
-    private val sectionKeys: List<SectionKey>
-
     /** Stores the starting index of each section within the flat list of contacts. */
     private val contactSectionStartIndices: IntArray
 
@@ -73,31 +67,29 @@ internal class ScrubberPositionToListIndexMapper(
      */
     init {
         val sectionCount = contactSections.size
-        contactSectionStartIndices = IntArray(sectionCount)
-        nonContactItemsBeforeSection = IntArray(sectionCount)
-        lazyColumnSectionStartIndices = IntArray(sectionCount)
-        sectionKeys = ArrayList<SectionKey>(sectionCount)
+        val startIndices = IntArray(sectionCount)
+        val nonContactItems = IntArray(sectionCount)
+        val lazyColumnStartIndices = IntArray(sectionCount)
+        var _contactCount = 0
 
-        var currentContactCount = 0
         var currentContactIndex = 0
-        var currentSectionIndex = 0
-        var currentNonContactItemsCount =
-            STICKY_HEADER_OFFSET + if (showPrivacyBanner) PRIVACY_BANNER_OFFSET else 0
+        var currentNonContactItemsCount = STICKY_HEADER_OFFSET
+        currentNonContactItemsCount += if (showPrivacyBanner) PRIVACY_BANNER_OFFSET else 0
 
-        contactSections.forEach { (sectionKey, currentSectionContacts) ->
+        contactSections.values.forEachIndexed { index, currentSectionContacts ->
             val currentSectionContactsCount = currentSectionContacts.size
-            contactSectionStartIndices[currentSectionIndex] = currentContactIndex
-            nonContactItemsBeforeSection[currentSectionIndex] = currentNonContactItemsCount
-            lazyColumnSectionStartIndices[currentSectionIndex] =
-                currentContactIndex + currentNonContactItemsCount
+            startIndices[index] = currentContactIndex
+            nonContactItems[index] = currentNonContactItemsCount
+            lazyColumnStartIndices[index] = currentContactIndex + currentNonContactItemsCount
             currentContactIndex += currentSectionContactsCount
             currentNonContactItemsCount += STICKY_HEADER_OFFSET
-            currentContactCount += currentSectionContactsCount
-            sectionKeys.add(sectionKey)
-            currentSectionIndex++
+            _contactCount += currentSectionContactsCount
         }
 
-        contactCount = currentContactCount
+        contactSectionStartIndices = startIndices
+        nonContactItemsBeforeSection = nonContactItems
+        lazyColumnSectionStartIndices = lazyColumnStartIndices
+        contactCount = _contactCount
     }
 
     /**
@@ -162,26 +154,6 @@ internal class ScrubberPositionToListIndexMapper(
     ): Int {
         val maxIndex = contactCount - 1
         return (maxIndex * verticalOffsetFraction).roundToInt().coerceIn(0, maxIndex)
-    }
-
-    /**
-     * Returns the [SectionKey] for the given [contactIndex].
-     *
-     * @param contactIndex The index of the contact in the flattened list which excludes non-contact
-     *   items like sectionHeader and privacy banner.
-     * @return The [SectionKey] of the section containing the contact, or null if the index is out
-     *   of bounds.
-     */
-    fun getSectionKeyForContactIndex(contactIndex: Int): SectionKey? {
-        if (contactIndex !in 0..<contactCount) {
-            Log.wtf(
-                TAG,
-                "getSectionKeyForContactIndex: out of bounds index $contactIndex, contactCount is $contactCount",
-            )
-            return null
-        }
-        val sectionIndex = contactSectionStartIndices.binarySearchFloor(contactIndex)
-        return if (sectionIndex >= 0) sectionKeys[sectionIndex] else null
     }
 
     private fun findSectionIndexForListIndex(listIndex: Int) =

@@ -41,6 +41,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -66,13 +67,14 @@ fun ContactsPickerTopBar(
     onToggleContactSelection: (Contact, SelectionSource) -> Unit,
     onToggleEntrySelection: (Long, Long, SelectionSource) -> Unit,
     onExitSearch: () -> Unit,
-    onPrivacyDetailsOverflowMenuClicked: () -> Unit,
+    onPrivacyDetailsClicked: () -> Unit,
     onProfileClicked: (UserProfile) -> Unit,
 ) {
     val isSearchExpanded by remember { derivedStateOf { uiState.value is SearchState } }
     Row(
         modifier =
             Modifier.fillMaxWidth().padding(horizontal = if (isSearchExpanded) 4.dp else 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement =
             if (isSearchExpanded) Arrangement.spacedBy(0.dp) else Arrangement.spacedBy(8.dp),
     ) {
@@ -87,10 +89,8 @@ fun ContactsPickerTopBar(
             onExitSearch = onExitSearch,
         )
         if (!isSearchExpanded) {
-            Row(modifier = Modifier.padding(vertical = 12.dp)) {
-                ProfileSwitcher(userState = userState, onProfileClicked = onProfileClicked)
-                OverflowMenu(onClickPrivacyDetailsMenuItem = onPrivacyDetailsOverflowMenuClicked)
-            }
+            ProfileSwitcher(userState = userState, onProfileClicked = onProfileClicked)
+            OverflowMenu(onClickPrivacyDetailsMenuItem = onPrivacyDetailsClicked)
         }
     }
 }

@@ -24,7 +24,7 @@ package com.android.contactspicker.data.model
  * - [EmailContact]: Contains base info plus a non-empty list of email addresses.
  */
 sealed class Contact {
-    /** A unique row ID for the contact in the Contacts provider. */
+    /** A unique, stable identifier for the contact. */
     abstract val id: Long
 
     /** The name of the contact, suitable for display. */
@@ -36,9 +36,6 @@ sealed class Contact {
 
     /** True if the contact is starred (favorited), false otherwise. */
     abstract val isFavorite: Boolean
-
-    /** A unique, stable identifier for the contact. */
-    abstract val lookupKey: String
 
     /**
      * Returns true if all entries of the [Contact] are present in the [selectedEntries] set.
@@ -86,7 +83,7 @@ data class DisplayNameContact(
     override val displayNameSource: Int,
     override val profilePictureUri: String?,
     override val isFavorite: Boolean,
-    override val lookupKey: String,
+    val lookupKey: String,
 ) : Contact() {
     init {
         require(displayName.isNotBlank()) { "Display name must not be blank." }
@@ -101,7 +98,6 @@ data class DisplayNameContact(
  * @param displayName The name of the contact. Must not be blank.
  * @param profilePictureUri The URI for the contact's profile picture thumbnail.
  * @param isFavorite True if the contact is starred (favorited).
- * @param lookupKey A unique, stable identifier for the contact.
  * @param phones The non-empty list of phone entries.
  * @throws IllegalArgumentException if [displayName] is blank or [phones] is empty.
  */
@@ -111,14 +107,12 @@ data class PhoneContact(
     override val displayNameSource: Int,
     override val profilePictureUri: String?,
     override val isFavorite: Boolean,
-    override val lookupKey: String,
     val phones: List<PhoneEntry>,
 ) : Contact() {
     init {
         require(displayName.isNotBlank()) {
             "A PhoneContact must be created with a non blank display name."
         }
-        require(lookupKey.isNotBlank()) { "Lookup key must not be blank." }
         require(phones.isNotEmpty()) {
             "A PhoneContact must be created with at least one phone number."
         }
@@ -132,7 +126,6 @@ data class PhoneContact(
  * @param displayName The name of the contact. Must not be blank.
  * @param profilePictureUri The URI for the contact's profile picture thumbnail.
  * @param isFavorite True if the contact is starred (favorited).
- * @param lookupKey A unique, stable identifier for the contact.
  * @param emails The non-empty list of email entries.
  * @throws IllegalArgumentException if [displayName] is blank or [emails] is empty.
  */
@@ -142,14 +135,12 @@ data class EmailContact(
     override val displayNameSource: Int,
     override val profilePictureUri: String?,
     override val isFavorite: Boolean,
-    override val lookupKey: String,
     val emails: List<EmailEntry>,
 ) : Contact() {
     init {
         require(displayName.isNotBlank()) {
             "A EmailContact must be created with a non blank display name."
         }
-        require(lookupKey.isNotBlank()) { "Lookup key must not be blank." }
         require(emails.isNotEmpty()) {
             "An EmailContact must be created with at least one email address."
         }

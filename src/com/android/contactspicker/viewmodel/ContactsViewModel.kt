@@ -35,11 +35,12 @@ import com.android.contactspicker.PrivacyDetailsState
 import com.android.contactspicker.R
 import com.android.contactspicker.SearchState
 import com.android.contactspicker.config.ContactsPickerAction
-import com.android.contactspicker.config.ContactsPickerConfigError
 import com.android.contactspicker.config.ContactsPickerRequestConfig
 import com.android.contactspicker.config.ContactsQueryMode
 import com.android.contactspicker.data.model.Contact
+import com.android.contactspicker.data.model.EmailContact
 import com.android.contactspicker.data.model.PausedReason
+import com.android.contactspicker.data.model.PhoneContact
 import com.android.contactspicker.data.model.PickerUserState
 import com.android.contactspicker.data.model.ProfileBlockedDialogData
 import com.android.contactspicker.data.model.SelectionSource
@@ -49,6 +50,7 @@ import com.android.contactspicker.data.model.emptyContactsSelection
 import com.android.contactspicker.data.repository.ContactsPickerSessionProviderRepository
 import com.android.contactspicker.data.repository.ContactsRepository
 import com.android.contactspicker.data.repository.PrivacyBannerRepository
+import com.android.contactspicker.data.repository.UserRepository
 import com.android.contactspicker.logging.ContactsPickerLogger
 import dagger.Lazy
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -113,7 +115,7 @@ constructor(
     private val contactsRepository: ContactsRepository,
     private val contactsPickerSessionProviderRepository: ContactsPickerSessionProviderRepository,
     private val privacyBannerRepository: PrivacyBannerRepository,
-    private val profileSelectionHandler: Lazy<ProfileSelectionHandler>,
+    private val userRepository: Lazy<UserRepository>,
     private val selectionHandlerFactory: ContactsSelectionHandler.Factory,
     private val contactsPickerLogger: ContactsPickerLogger,
 ) : ViewModel() {
@@ -190,81 +192,53 @@ constructor(
         this.callingPackageName = callingPackageName
         this.callingAppUid = callingAppUid
 
+        val config =
+            ContactsPickerRequestConfig.create(intentAction, intentType, intentExtras).also {
+                pickerConfig = it
+            }
         val useSystemContactsPicker =
             intentExtras?.getBoolean(Intent.EXTRA_USE_SYSTEM_CONTACTS_PICKER, false) ?: false
 
-        val result = ContactsPickerRequestConfig.create(intentAction, intentType, intentExtras)
+        contactsPickerLogger.logContactsPickerSessionStarted(
+            callingAppUid = callingAppUid,
+            callingAppTargetSdk = callingAppTargetSdk,
+            pickerIntentAction = config.pickerAction,
+            requestedMimeTypes = config.requestedMimeTypes,
+            useSystemContactsPicker = useSystemContactsPicker,
+            matchAllRequestedMimeTypes = config.matchAllRequestedMimeTypes,
+        )
 
-        when (result) {
-            is ContactsPickerConfigError -> {
-                Log.e(TAG, "Invalid intent configuration: ${result.message}")
+        if (!shouldHandleIntent(callingAppTargetSdk, useSystemContactsPicker)) {
 
-                // any valid partial data will be logged
-                contactsPickerLogger.logContactsPickerSessionStarted(
-                    callingAppUid = callingAppUid,
-                    callingAppTargetSdk = callingAppTargetSdk,
-                    pickerIntentAction = result.parsedAction,
-                    requestedMimeTypes = result.parsedMimeTypes,
-                    useSystemContactsPicker = useSystemContactsPicker,
-                    matchAllRequestedMimeTypes = result.parsedMatchAll,
-                )
-
-                contactsPickerLogger.logContactsPickerSessionFailed(result.errorType)
-
-                viewModelScope.launch {
-                    _pickerResultEvents.send(PickerResultEvent.CancelAndFinish)
-                }
-                return true
-            }
-
-            is ContactsPickerRequestConfig -> {
-                this.pickerConfig = result
-
-                contactsPickerLogger.logContactsPickerSessionStarted(
-                    callingAppUid = callingAppUid,
-                    callingAppTargetSdk = callingAppTargetSdk,
-                    pickerIntentAction = result.pickerAction,
-                    requestedMimeTypes = result.requestedMimeTypes,
-                    useSystemContactsPicker = useSystemContactsPicker,
-                    matchAllRequestedMimeTypes = result.matchAllRequestedMimeTypes,
-                )
-
-                if (!shouldHandleIntent(callingAppTargetSdk, useSystemContactsPicker)) {
-                    contactsPickerLogger.logContactsPickerSessionForwarded()
-                    return false
-                }
-
-                // TODO(b/479454402): Refactor isUserSwitchingEnabled into
-                // ContactsPickerRequestConfig
-                // to decouple from ACTION_PICK_CONTACTS
-                val isUserSwitchingEnabled =
-                    result.pickerAction == ContactsPickerAction.ACTION_PICK_CONTACTS
-
-                if (isUserSwitchingEnabled) {
-                    profileSelectionHandler.get().clearSelectedUser()
-                    startObservingUserState(result)
-                } else {
-                    val defaultState =
-                        PickerUserState.Success(
-                            userIdToAvailableUsersMap = emptyMap(),
-                            selectedUserId = UserHandle.myUserId(),
-                        )
-                    _userState.value = defaultState
-                    loadContactsListData(result, defaultState)
-                }
-
-                selectionHandler =
-                    selectionHandlerFactory.create(
-                        result.isMultiSelectEnabled,
-                        result.maxSelectionLimit,
-                    ) { event ->
-                        viewModelScope.launch { _snackbarEvents.emit(event) }
-                    }
-
-                startObservingSelection()
-                return true
-            }
+            // TODO(b/441483549): Log ContactsPickerSessionFinished with
+            //  ContactsPickerSessionResult.SESSION_RESULT_FORWARDED
+            return false
         }
+
+        // TODO(b/479454402): Refactor isUserSwitchingEnabled into ContactsPickerRequestConfig
+        // to decouple from ACTION_PICK_CONTACTS
+        val isUserSwitchingEnabled =
+            config.pickerAction == ContactsPickerAction.ACTION_PICK_CONTACTS
+        if (isUserSwitchingEnabled) {
+            viewModelScope.launch { userRepository.get().clearSelectedUser() }
+            startObservingUserState(config)
+        } else {
+            val defaultState =
+                PickerUserState.Success(
+                    userIdToAvailableUsersMap = emptyMap(),
+                    selectedUserId = UserHandle.myUserId(),
+                )
+            _userState.value = defaultState
+            loadContactsListData(config, defaultState)
+        }
+
+        selectionHandler =
+            selectionHandlerFactory.create(config.isMultiSelectEnabled, config.maxSelectionLimit) {
+                event ->
+                viewModelScope.launch { _snackbarEvents.emit(event) }
+            }
+        startObservingSelection()
+        return true
     }
 
     /** Returns true if the intent is eligible for internal handling based on SDK and flags. */
@@ -309,9 +283,9 @@ constructor(
         userStateCollectorJob?.cancel()
         userStateCollectorJob =
             viewModelScope.launch {
-                profileSelectionHandler
+                userRepository
                     .get()
-                    .getUserStateFlow(callingPackageName, UserHandle.getUserId(callingAppUid))
+                    .getUserState(callingPackageName, UserHandle.getUserId(callingAppUid))
                     .collect { userState ->
                         if (userState !is PickerUserState.Success) {
                             _userState.value = userState
@@ -452,7 +426,6 @@ constructor(
         val handler = checkNotNull(selectionHandler)
         viewModelScope.launch {
             if (handler.selectedContacts.value.isEmpty()) {
-                contactsPickerLogger.logContactsPickerSessionCancelled()
                 _pickerResultEvents.send(PickerResultEvent.CancelAndFinish)
                 return@launch
             }
@@ -560,7 +533,7 @@ constructor(
         val userState = _userState.value as? PickerUserState.Success ?: return
         if (userId == userState.selectedUserId) return
 
-        profileSelectionHandler.get().setSelectedUser(userId)
+        viewModelScope.launch { userRepository.get().setSelectedUser(userId) }
     }
 
     /**
@@ -735,19 +708,30 @@ constructor(
 
         cachedStateBeforeNavigation = currentState
 
-        val (selectedIds, isMultiSelectEnabled) =
+        val (availableContacts, selectedIds, isMultiSelectEnabled) =
             when (currentState) {
                 is ContactsListState.Success ->
-                    currentState.selectedContacts to currentState.isMultiSelectEnabled
+                    Triple(
+                        initialContacts,
+                        currentState.selectedContacts,
+                        currentState.isMultiSelectEnabled,
+                    )
+
                 is SearchState.Success -> {
-                    currentState.selectedContacts to config.isMultiSelectEnabled
+                    val aggregatedContacts = currentState.getAggregatedContacts(config.queryMode)
+                    Triple(
+                        aggregatedContacts,
+                        currentState.selectedContacts,
+                        config.isMultiSelectEnabled,
+                    )
                 }
                 else -> return
             }
 
         contactsPickerLogger.previewOpened()
 
-        val previewList = initialContacts.filter { contact -> selectedIds.containsKey(contact.id) }
+        val previewList =
+            availableContacts.filter { contact -> selectedIds.containsKey(contact.id) }
 
         _uiState.value =
             ContactsPreviewState(
@@ -776,17 +760,7 @@ constructor(
     }
 
     @OpenForTesting
-    open fun onPrivacyDetailsBannerClicked() {
-        contactsPickerLogger.privacyDetailsBannerOpened()
-        navigateToPrivacyDetails()
-    }
-
-    fun onPrivacyDetailsOverflowMenuClicked() {
-        contactsPickerLogger.privacyDetailsOverflowMenuOpened()
-        navigateToPrivacyDetails()
-    }
-
-    private fun navigateToPrivacyDetails() {
+    open fun onPrivacyDetailsClicked() {
         val currentState = _uiState.value
         require(currentState is ContactsListState.Success) {
             "onPrivacyDetailsClicked called from unexpected state: $currentState"
@@ -811,13 +785,34 @@ constructor(
         _uiState.value = currentCachedState
         cachedStateBeforeNavigation = null
     }
-
-    /** Override the ViewModel lifecycle method to catch when the view model is destroyed */
-    override fun onCleared() {
-        // Always send a signal to the logger. If the session end was logged as success/failure
-        // earlier, the session data will be null and this call will be a no-op. It will log if the
-        // view model is destroyed because the user exited the app with an unfinished session.
-        contactsPickerLogger.logContactsPickerSessionCancelled()
-        super.onCleared()
-    }
 }
+
+/** Aggregates search results into a list of unique contacts, grouping entries by contact ID. */
+// TODO(b/441480198): Add unit tests to verify the correctness of this aggregation.
+private fun SearchState.Success.getAggregatedContacts(queryMode: ContactsQueryMode): List<Contact> =
+    when (queryMode) {
+        ContactsQueryMode.EmailsOnly -> {
+            val emailContacts = searchResults.map { it as EmailContact }
+            emailContacts
+                .groupBy { it.id }
+                .values
+                .map { contacts ->
+                    contacts
+                        .first()
+                        .copy(emails = contacts.flatMap { it.emails }.distinctBy { it.id })
+                }
+        }
+        ContactsQueryMode.PhonesOnly -> {
+            val phoneContacts = searchResults.map { it as PhoneContact }
+            phoneContacts
+                .groupBy { it.id }
+                .values
+                .map { contacts ->
+                    contacts
+                        .first()
+                        .copy(phones = contacts.flatMap { it.phones }.distinctBy { it.id })
+                }
+        }
+        ContactsQueryMode.DisplayNamesOnly,
+        is ContactsQueryMode.Custom -> searchResults
+    }

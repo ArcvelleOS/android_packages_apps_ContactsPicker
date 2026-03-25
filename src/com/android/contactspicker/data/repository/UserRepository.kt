@@ -16,53 +16,29 @@
 
 package com.android.contactspicker.data.repository
 
-import android.os.UserHandle
-import android.os.UserManager
-import com.android.contactspicker.data.model.UserProfile
-import com.android.contactspicker.data.repository.utils.ProfileChangesMonitor
-import com.android.contactspicker.data.repository.utils.UserProfileFactory
-import javax.inject.Inject
-import kotlinx.coroutines.Dispatchers
+import com.android.contactspicker.data.model.PickerUserState
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onStart
 
-class UserRepository
-@Inject
-constructor(
-    private val userManager: UserManager,
-    private val userProfileFactory: UserProfileFactory,
-    private val profileChangesMonitor: ProfileChangesMonitor,
-) {
+/** Repository to manage user profiles and their states. */
+interface UserRepository {
+    /**
+     * Gets a flow of states of all profiles associated with the foreground user.
+     *
+     * @param callingPackageName The package name of the app that invoked the picker.
+     * @param callingUserId The user ID of the app that invoked the picker.
+     */
+    fun getUserState(callingPackageName: String?, callingUserId: Int): Flow<PickerUserState>
 
     /**
-     * Emits a map of available [UserProfile]s keyed by user ID, updating automatically on system
-     * profile changes. Profiles that are hidden or unauthorized for the calling app are excluded.
+     * Updates the currently selected user profile.
      *
-     * @param callingPackageName The client app's package name, used to verify cross-profile access.
+     * @param userId The ID of the user to select.
      */
-    // TODO(b/479464524): Optimize profile data reload during changes in profiles to only update
-    // the modified profile
-    fun getAvailableUsersFlow(callingPackageName: String?): Flow<Map<Int, UserProfile>> {
-        return profileChangesMonitor
-            .getProfileChangeFlow()
-            .onStart { emit(Unit) }
-            .map {
-                userProfileFactory.clearCache()
-                loadAvailableUsersMap(callingPackageName)
-            }
-            .flowOn(Dispatchers.IO)
-    }
+    suspend fun setSelectedUser(userId: Int)
 
-    private fun loadAvailableUsersMap(callingPackageName: String?): Map<Int, UserProfile> {
-        val currentProcessUserId = UserHandle.myUserId()
-        val allProfiles = userManager.getProfiles(currentProcessUserId)
-
-        return allProfiles
-            .mapNotNull { userInfo ->
-                userProfileFactory.createProfile(userInfo, callingPackageName)
-            }
-            .associateBy { it.userId }
-    }
+    /**
+     * Clears the last selected user-profile, this will reset the selection to display the
+     * user-profile in which contacts picker is launched.
+     */
+    suspend fun clearSelectedUser()
 }

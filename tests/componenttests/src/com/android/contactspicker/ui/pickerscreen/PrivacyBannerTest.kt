@@ -49,12 +49,7 @@ class PrivacyBannerTest {
     @Test
     fun privacyBanner_displaysAllElements() {
         composeTestRule.setContent {
-            PrivacyBanner(
-                visible = true,
-                callingAppName = testAppName,
-                onMoreDetails = {},
-                onDismissRequest = {},
-            )
+            PrivacyBanner(callingAppName = testAppName, onMoreDetails = {}, onDismissRequest = {})
         }
 
         val bannerDescription = context.getString(R.string.privacy_banner_description, testAppName)
@@ -72,7 +67,6 @@ class PrivacyBannerTest {
 
         composeTestRule.setContent {
             PrivacyBanner(
-                visible = true,
                 callingAppName = null,
                 onMoreDetails = { moreDetailsClicked = true },
                 onDismissRequest = { dismissRequestFired = true },
@@ -87,20 +81,6 @@ class PrivacyBannerTest {
     }
 
     @Test
-    fun privacyBanner_withVisibleFalse_isNotDisplayed() {
-        composeTestRule.setContent {
-            PrivacyBanner(
-                visible = false,
-                callingAppName = testAppName,
-                onMoreDetails = {},
-                onDismissRequest = {},
-            )
-        }
-
-        composeTestRule.onNodeWithTag(PRIVACY_BANNER_TEST_TAG).assertDoesNotExist()
-    }
-
-    @Test
     fun privacyBanner_nullAppName_displaysFallbackAppName() {
         val expectedDescription =
             context.getString(
@@ -108,12 +88,7 @@ class PrivacyBannerTest {
                 context.getString(R.string.default_calling_app_name),
             )
         composeTestRule.setContent {
-            PrivacyBanner(
-                visible = true,
-                callingAppName = null,
-                onMoreDetails = {},
-                onDismissRequest = {},
-            )
+            PrivacyBanner(callingAppName = null, onMoreDetails = {}, onDismissRequest = {})
         }
         composeTestRule.onNodeWithText(expectedDescription).assertIsDisplayed()
     }
@@ -123,12 +98,7 @@ class PrivacyBannerTest {
         val expectedDescription =
             context.getString(R.string.privacy_banner_description, testAppName)
         composeTestRule.setContent {
-            PrivacyBanner(
-                visible = true,
-                callingAppName = testAppName,
-                onMoreDetails = {},
-                onDismissRequest = {},
-            )
+            PrivacyBanner(callingAppName = testAppName, onMoreDetails = {}, onDismissRequest = {})
         }
         composeTestRule.onNodeWithText(expectedDescription).assertIsDisplayed()
     }

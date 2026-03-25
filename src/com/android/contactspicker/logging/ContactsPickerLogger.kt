@@ -15,7 +15,6 @@
  */
 package com.android.contactspicker.logging
 
-import com.android.contactspicker.config.ConfigErrorType
 import com.android.contactspicker.config.ContactsPickerAction
 import com.android.contactspicker.data.model.MimeType
 
@@ -23,8 +22,8 @@ interface ContactsPickerLogger {
     fun logContactsPickerSessionStarted(
         callingAppUid: Int,
         callingAppTargetSdk: Int,
-        pickerIntentAction: ContactsPickerAction?,
-        requestedMimeTypes: List<MimeType>?,
+        pickerIntentAction: ContactsPickerAction,
+        requestedMimeTypes: List<MimeType>,
         useSystemContactsPicker: Boolean,
         matchAllRequestedMimeTypes: Boolean,
     )
@@ -34,18 +33,6 @@ interface ContactsPickerLogger {
         contactsSelectedFromFavorites: Boolean,
         contactsSelectedFromSearch: Boolean,
     )
-
-    fun logContactsPickerSessionFailed(errorType: ConfigErrorType)
-
-    /**
-     * Logs that the contacts picker session has been cancelled without making a selection.
-     *
-     * Note: Finishes the logging session. If the session was already finished by another logging
-     * function, this call is ignored.
-     */
-    fun logContactsPickerSessionCancelled()
-
-    fun logContactsPickerSessionForwarded()
 
     fun allContactsLoadingStarted()
 
@@ -71,16 +58,4 @@ interface ContactsPickerLogger {
      * finished is logged.
      */
     fun privacyBannerDismissedByUser()
-
-    /**
-     * Marks that the privacy details page has been opened from the privacy banner. Will be logged
-     * when the session finished is logged.
-     */
-    fun privacyDetailsBannerOpened()
-
-    /**
-     * Marks that the privacy details page has been opened from the overflow menu. Will be logged
-     * when the session finished is logged.
-     */
-    fun privacyDetailsOverflowMenuOpened()
 }

@@ -48,11 +48,7 @@ class AvatarTest {
     @Test
     fun avatar_whenProfilePictureUriIsNull_showsInitials() {
         composeTestRule.setContent {
-            Avatar(
-                displayName = "Alice Wonderland",
-                lookupKey = "lookupKey",
-                profilePictureUri = null,
-            )
+            Avatar(displayName = "Alice Wonderland", profilePictureUri = null)
         }
 
         composeTestRule.onNodeWithContentDescription(initialsContentDesc).assertExists()
@@ -64,11 +60,7 @@ class AvatarTest {
     @Test
     fun avatar_whenProfilePictureUriIsBlank_showsInitials() {
         composeTestRule.setContent {
-            Avatar(
-                displayName = "Alice Wonderland",
-                lookupKey = "lookupKey",
-                profilePictureUri = "",
-            )
+            Avatar(displayName = "Alice Wonderland", profilePictureUri = "")
         }
 
         composeTestRule.onNodeWithContentDescription(initialsContentDesc).assertExists()
@@ -81,11 +73,7 @@ class AvatarTest {
     fun avatar_whenProfilePictureUriExists_showsImageComposable() {
         val fakeUri = "content://fake/uri/123"
         composeTestRule.setContent {
-            Avatar(
-                displayName = "Alice Wonderland",
-                lookupKey = "lookupKey",
-                profilePictureUri = fakeUri,
-            )
+            Avatar(displayName = "Alice Wonderland", profilePictureUri = fakeUri)
         }
 
         // Assert that the composable that would host the image is present.
@@ -97,11 +85,7 @@ class AvatarTest {
     @Test
     fun avatar_noProfilePictureAndDisplayNameStartsWithSmallLetter_showsCapitalizedInitial() {
         composeTestRule.setContent {
-            Avatar(
-                displayName = "alice Wonderland",
-                lookupKey = "lookupKey",
-                profilePictureUri = "",
-            )
+            Avatar(displayName = "alice Wonderland", profilePictureUri = "")
         }
 
         composeTestRule.onNodeWithContentDescription(initialsContentDesc).assertExists()
@@ -115,11 +99,7 @@ class AvatarTest {
     fun avatar_noProfilePictureAndDisplayNameStartsWithEmoji_showsPersonIcon() {
         composeTestRule.setContent {
             // Smile emoji
-            Avatar(
-                displayName = "\uD83D\uDE42 Alice",
-                lookupKey = "lookupKey",
-                profilePictureUri = "",
-            )
+            Avatar(displayName = "\uD83D\uDE42 Alice", profilePictureUri = "")
         }
 
         composeTestRule.onNodeWithTag(AVATAR_FALLBACK_PERSON_ICON_TEST_TAG).assertExists()
@@ -130,9 +110,7 @@ class AvatarTest {
 
     @Test
     fun avatar_noProfilePictureAndDisplayNameStartsWithNumber_showsPersonIcon() {
-        composeTestRule.setContent {
-            Avatar(displayName = "1234", lookupKey = "lookupKey", profilePictureUri = "")
-        }
+        composeTestRule.setContent { Avatar(displayName = "1234", profilePictureUri = "") }
 
         composeTestRule.onNodeWithTag(AVATAR_FALLBACK_PERSON_ICON_TEST_TAG).assertExists()
         composeTestRule.onNodeWithContentDescription(initialsContentDesc).assertExists()
@@ -142,9 +120,7 @@ class AvatarTest {
 
     @Test
     fun avatar_noProfilePictureAndDisplayNameStartsWithSpecialSymbol_showsPersonIcon() {
-        composeTestRule.setContent {
-            Avatar(displayName = "@Name", lookupKey = "lookupKey", profilePictureUri = "")
-        }
+        composeTestRule.setContent { Avatar(displayName = "@Name", profilePictureUri = "") }
 
         composeTestRule.onNodeWithTag(AVATAR_FALLBACK_PERSON_ICON_TEST_TAG).assertExists()
         composeTestRule.onNodeWithContentDescription(initialsContentDesc).assertExists()
@@ -158,7 +134,6 @@ class AvatarTest {
             // "(No name)"
             Avatar(
                 displayName = context.getString(R.string.no_name_placeholder),
-                lookupKey = "lookupKey",
                 profilePictureUri = "",
             )
         }
@@ -171,9 +146,7 @@ class AvatarTest {
 
     @Test
     fun avatar_noProfilePictureAndDisplayNameEmpty_showsPersonIcon() {
-        composeTestRule.setContent {
-            Avatar(displayName = "", lookupKey = "lookupKey", profilePictureUri = "")
-        }
+        composeTestRule.setContent { Avatar(displayName = "", profilePictureUri = "") }
 
         composeTestRule.onNodeWithTag(AVATAR_FALLBACK_PERSON_ICON_TEST_TAG).assertExists()
         composeTestRule.onNodeWithContentDescription(initialsContentDesc).assertExists()

@@ -15,8 +15,7 @@
  */
 package com.android.democontactspickerclientapp
 
-import android.graphics.BitmapFactory
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,9 +23,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyListScope
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -42,22 +38,15 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.android.democontactspickerclientapp.lib.R
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 @Composable
 fun ScreenTitle(targetSdk: Int) {
@@ -136,44 +125,11 @@ fun CommonOptions(
     }
 }
 
-fun LazyListScope.actionPickResultDisplay(pickerResult: PickerResult) {
-    item {
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors =
-                CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Column {
-                    Text(
-                        text = "Result Status",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = pickerResult.statusText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-        }
-    }
-
-    if (pickerResult.rows.isNotEmpty()) {
-        items(pickerResult.rows) { flatRow -> RowTile(flatRow) }
-    }
-}
-
 @Composable
-fun RowTile(flatRow: FlatRow) {
+fun ContactTile(result: ContactResult) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(24.dp),
         colors =
             CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
@@ -182,73 +138,58 @@ fun RowTile(flatRow: FlatRow) {
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
-                text = "Row from: ${flatRow.contactName}",
+                text = "Contact name: ${result.contactName}",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
             )
+            Spacer(Modifier.height(4.dp))
             Text(
-                text = flatRow.row.metadata,
-                style = MaterialTheme.typography.labelMedium,
+                text = "${result.detailLabel}: ${result.detail}",
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(8.dp))
-            DataRowContent(flatRow.row)
+            Text(
+                text = "URI: ${result.uri}",
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+            )
         }
     }
 }
 
 @Composable
-fun DataRowContent(row: DataRow) {
-    Row(
-        modifier = Modifier.padding(vertical = 2.dp),
-        verticalAlignment = Alignment.CenterVertically,
+fun ResultDisplay(pickerResult: PickerResult) {
+    Column(
+        modifier =
+            Modifier.fillMaxWidth()
+                .background(
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    shape = RoundedCornerShape(12.dp),
+                )
+                .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = "${row.label}: ",
-            style = MaterialTheme.typography.bodySmall,
+            "Result Status",
+            style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center,
         )
-        if (row.photoBytes != null) {
-            var bitmap by
-                remember(row.photoBytes) {
-                    mutableStateOf<androidx.compose.ui.graphics.ImageBitmap?>(null)
-                }
-            var hasError by remember(row.photoBytes) { mutableStateOf(false) }
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            text = pickerResult.statusText,
+            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+            style = MaterialTheme.typography.titleMedium,
+        )
 
-            LaunchedEffect(row.photoBytes) {
-                withContext(Dispatchers.IO) {
-                    val decoded =
-                        BitmapFactory.decodeByteArray(row.photoBytes, 0, row.photoBytes.size)
-                    if (decoded != null) {
-                        bitmap = decoded.asImageBitmap()
-                    } else {
-                        hasError = true
-                    }
-                }
-            }
+        if (pickerResult.contacts.isNotEmpty()) {
 
-            if (bitmap != null) {
-                Image(
-                    bitmap = bitmap!!,
-                    contentDescription = "Contact Photo",
-                    modifier = Modifier.size(48.dp),
-                )
-            } else if (hasError) {
-                Text(
-                    text = "Invalid photo data",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            } else {
-                Text(
-                    text = "Loading image...",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                pickerResult.contacts.forEach { result -> ContactTile(result) }
             }
-        } else {
-            Text(text = row.valueText, style = MaterialTheme.typography.bodySmall)
         }
     }
 }

@@ -81,7 +81,8 @@ fun buildLegacyPickerIntent(
     return intent
 }
 
-private fun formatUriData(context: Context, uri: Uri, pickerType: LegacyPickerType): FlatRow {
+/** Queries the ContentResolver to format the data for display based on the URI type. */
+private fun formatUriData(context: Context, uri: Uri, pickerType: LegacyPickerType): ContactResult {
     val contentResolver = context.contentResolver
     val projection =
         when (pickerType) {
@@ -110,11 +111,13 @@ private fun formatUriData(context: Context, uri: Uri, pickerType: LegacyPickerTy
                     val addressIndex =
                         c.getColumnIndex(ContactsContract.CommonDataKinds.Email.ADDRESS)
                     val name =
-                        if (nameIndex != -1) c.getString(nameIndex) ?: "Unknown" else "Unknown"
+                        if (nameIndex != -1) c.getString(nameIndex) ?: "NULL"
+                        else "No contact index"
                     val address =
                         if (addressIndex != -1) c.getString(addressIndex) ?: "NULL"
                         else "No address index"
-                    FlatRow(name, DataRow("Email", address, metadata = "URI: $uri"))
+
+                    ContactResult(name, address, "Email", uri.toString())
                 }
                 LegacyPickerType.PHONE -> {
                     val nameIndex =
@@ -122,30 +125,30 @@ private fun formatUriData(context: Context, uri: Uri, pickerType: LegacyPickerTy
                     val numberIndex =
                         c.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER)
                     val name =
-                        if (nameIndex != -1) c.getString(nameIndex) ?: "Unknown" else "Unknown"
+                        if (nameIndex != -1) c.getString(nameIndex) ?: "NULL"
+                        else "No contact index"
                     val number =
                         if (numberIndex != -1) c.getString(numberIndex) ?: "NULL"
                         else "No phone index"
-                    FlatRow(name, DataRow("Phone", number, metadata = "URI: $uri"))
+                    ContactResult(name, number, "Phone", uri.toString())
                 }
                 LegacyPickerType.CONTACT -> {
                     val nameIndex = c.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME)
                     val idIndex = c.getColumnIndex(ContactsContract.Contacts._ID)
                     val name =
-                        if (nameIndex != -1) c.getString(nameIndex) ?: "Unknown" else "Unknown"
+                        if (nameIndex != -1) c.getString(nameIndex) ?: "NULL"
+                        else "No contact index"
                     val id =
                         if (idIndex != -1) c.getString(idIndex) ?: "NULL" else "No contact ID index"
-                    FlatRow(name, DataRow("Contact ID", id, metadata = "URI: $uri"))
+                    ContactResult(name, id, "Contact ID", uri.toString())
                 }
             }
         } else {
-            FlatRow(
-                "Error",
-                DataRow(
-                    label = "Error Message",
-                    valueText = "Could not retrieve data for URI (Check read permission)",
-                    metadata = "URI: $uri",
-                ),
+            ContactResult(
+                contactName = "Error",
+                detail = "Could not retrieve data for URI (Check read permission)",
+                detailLabel = "Error Message",
+                uri = uri.toString(),
             )
         }
     }
@@ -167,11 +170,14 @@ fun handlePickerResult(
         }
         return if (uris.isNotEmpty()) {
             val formattedResults = uris.map { uri -> formatUriData(context, uri, pickerType) }
-            PickerResult("Received items: ${uris.size}", formattedResults)
+            PickerResult(statusText = "Received items: ${uris.size}", contacts = formattedResults)
         } else {
-            PickerResult("Picker returned OK, but no URI was found.")
+            PickerResult(
+                statusText = "Picker returned OK, but no URI was found.",
+                contacts = emptyList(),
+            )
         }
     } else {
-        return PickerResult("Picker was canceled or failed.")
+        return PickerResult(statusText = "Picker was canceled or failed.", contacts = emptyList())
     }
 }
