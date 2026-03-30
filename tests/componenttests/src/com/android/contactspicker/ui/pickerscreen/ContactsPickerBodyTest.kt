@@ -18,6 +18,7 @@ package com.android.contactspicker.ui.pickerscreen
 
 import android.content.Context
 import android.content.flags.Flags
+import android.platform.test.annotations.RequiresFlagsDisabled
 import android.platform.test.annotations.RequiresFlagsEnabled
 import android.platform.test.flag.junit.CheckFlagsRule
 import android.platform.test.flag.junit.DeviceFlagsValueProvider
@@ -44,7 +45,6 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.android.contactspicker.R
 import com.android.contactspicker.data.model.Contact
-import com.android.contactspicker.data.model.DisplayNameContact
 import com.android.contactspicker.data.model.SelectionSource
 import com.android.contactspicker.data.model.emptyContactsSelection
 import com.android.contactspicker.testdata.ContactTestDataFactory
@@ -75,6 +75,7 @@ class ContactsPickerBodyTest {
         }
 
     @Test
+    @RequiresFlagsDisabled(com.android.contactspicker.Flags.FLAG_ENABLE_CONTACT_GROUPING_USING_CP2)
     fun contactsList_displaysHeadersAndContacts() {
         val contacts = ContactTestDataFactory.GENERIC_DISPLAY_NAME_CONTACT_LIST
 
@@ -197,6 +198,7 @@ class ContactsPickerBodyTest {
     }
 
     @Test
+    @RequiresFlagsDisabled(com.android.contactspicker.Flags.FLAG_ENABLE_CONTACT_GROUPING_USING_CP2)
     fun contactsPickerBody_withSpecialCharacterDisplayName_displaysEmojiHeader() {
         val regularContact = ContactTestDataFactory.GENERIC_DISPLAY_NAME_CONTACT
         val contacts =
@@ -247,6 +249,7 @@ class ContactsPickerBodyTest {
     }
 
     @Test
+    @RequiresFlagsDisabled(com.android.contactspicker.Flags.FLAG_ENABLE_CONTACT_GROUPING_USING_CP2)
     fun contactsList_rendersSections_inCorrectOrder() {
         val favContact =
             ContactTestDataFactory.createDisplayNameContact(
@@ -490,12 +493,10 @@ class ContactsPickerBodyTest {
         var toggledSource: SelectionSource? = null
         // Create or copy a contact that is explicitly marked as a favorite
         val favoriteContact =
-            DisplayNameContact(
+            ContactTestDataFactory.createDisplayNameContact(
                 id = 123L,
                 displayName = "Favorite Person",
-                profilePictureUri = null,
                 isFavorite = true,
-                lookupKey = "fav_key",
             )
 
         composeTestRule.setContent {
